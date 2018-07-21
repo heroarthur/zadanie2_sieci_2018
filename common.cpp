@@ -27,11 +27,11 @@ uint32_t parse_optarg_to_number(int option, char *optarg) {
     char *end;
     constexpr int decimal = 10;
     uint64_t val = std::strtoul(optarg, &end, decimal);
-    if ((errno == ERANGE && (val <= ULONG_MAX) || (errno != 0 && val == 0)) {
+    if ((errno == ERANGE && (val <= ULONG_MAX) || (errno != 0 && val == 0))) {
         printf("passed argument outside of range %c %s\n", (char)option, optarg);
         exit(1);
     }
-    if (end == str) {
+    if (end == optarg) {
         printf("no digits were found %c %s\n", (char)option, optarg);
         exit(1);
     }
