@@ -24,17 +24,17 @@ using namespace std;
 
 uint32_t parse_optarg_to_int(int option, char* optarg) {
     char * t;
-    int64_t check;
-    check = (int64_t)strtol(optarg, &t, 10);
+    auto check = (int64_t)strtol(optarg, &t, 10);
     if ((*t) != '\0' || t == optarg) {
-        cerr << "passed argument wrong " <<(char)(option) << " " << optarg << endl;
+        printf("passed argument wrong %c %s\n", (char)option, optarg);
         exit(1);
     }
     if(check < 0) {
         cerr << "passed argument negative value  " <<(char)(option) << " " << optarg << endl;
+        printf("argument can't be negative have value %c %s\n", (char)option, optarg);
         exit(1);
     }
-    uint32_t v = (uint32_t)check;
+    auto v = (uint32_t)check;
     return v;
 }
 
@@ -72,7 +72,6 @@ int main (int argc, char *argv[]) {
         switch (c) {
             case 'a':
                 mcast_addr = string(optarg);
-                printf("value of optarg: %s\n", optarg);
                 break;
             case 'P':
                 data_port = parse_optarg_to_int('P', optarg);
