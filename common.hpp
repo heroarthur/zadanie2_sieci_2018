@@ -20,7 +20,7 @@
 #include <list>
 #include <fcntl.h>
 #include<ctime>
-uint32_t parse_optarg_to_int(int option, char* optarg);
+uint32_t parse_optarg_to_number(int option, char *optarg);
 
 
 #endif //ZADANIE2_COMMON_HPP

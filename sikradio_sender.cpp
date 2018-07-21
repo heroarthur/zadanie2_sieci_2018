@@ -53,22 +53,22 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
                 mcast_addr = string(optarg);
                 break;
             case 'P':
-                data_port = parse_optarg_to_int('P', optarg);
+                data_port = parse_optarg_to_number('P', optarg);
                 break;
             case 'n':
                 nazwa_odbiornika = string(optarg);
                 break;
             case 'C':
-                ctrl_port = parse_optarg_to_int('C', optarg);
+                ctrl_port = parse_optarg_to_number('C', optarg);
                 break;
             case 'p':
-                psize = parse_optarg_to_int('p', optarg);
+                psize = parse_optarg_to_number('p', optarg);
                 break;
             case 'f':
-                fsize = parse_optarg_to_int('f', optarg);
+                fsize = parse_optarg_to_number('f', optarg);
                 break;
             case 'R':
-                rtime = parse_optarg_to_int('R', optarg);
+                rtime = parse_optarg_to_number('R', optarg);
                 break;
 
             case '?':

@@ -20,18 +20,24 @@
 #include <list>
 #include <fcntl.h>
 #include<ctime>
+#include<climits>
 
-uint32_t parse_optarg_to_int(int option, char* optarg) {
-    char * t;
-    auto check = (int64_t)strtol(optarg, &t, 10);
-    if ((*t) != '\0' || t == optarg) {
-        printf("passed argument wrong %c %s\n", (char)option, optarg);
+
+uint32_t parse_optarg_to_number(int option, char *optarg) {
+    char *end;
+    constexpr int decimal = 10;
+    uint64_t val = std::strtoul(optarg, &end, decimal);
+    if ((errno == ERANGE && (val <= ULONG_MAX) || (errno != 0 && val == 0)) {
+        printf("passed argument outside of range %c %s\n", (char)option, optarg);
         exit(1);
     }
-    if(check < 0) {
-        printf("argument can't be negative have value %c %s\n", (char)option, optarg);
+    if (end == str) {
+        printf("no digits were found %c %s\n", (char)option, optarg);
         exit(1);
     }
-    auto v = (uint32_t)check;
-    return v;
+    if (*end == '\0' || end == optarg) {
+        printf("argument have none-digit characters %c %s\n", (char)option, optarg);
+        exit(1);
+    }
+    return (uint32_t)val;
 }
