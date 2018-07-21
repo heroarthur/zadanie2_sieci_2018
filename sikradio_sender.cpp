@@ -55,15 +55,10 @@ void write_program_parameters (string mcast_addr, string nazwa_odbiornika,
 }
 
 
-int main (int argc, char *argv[]) {
-    string mcast_addr;
-    string nazwa_odbiornika;
-    uint32_t data_port;
-    uint32_t ctrl_port;
-    uint32_t psize;
-    uint32_t fsize;
-    uint32_t rtime;
-
+void set_sikradio_sender_arguments(const int& argc, char **argv,
+                           string& mcast_addr, string& nazwa_odbiornika,
+                           uint32_t& data_port, uint32_t& ctrl_port,
+                           uint32_t& psize, uint32_t& fsize, uint32_t& rtime) {
     int c;
     opterr = 0;
     int index;
@@ -98,20 +93,30 @@ int main (int argc, char *argv[]) {
                 else if (isprint(optopt))
                     fprintf(stderr, "Unknown option `-%c'.\n", optopt);
                 else
-                    fprintf(stderr,
-                            "Unknown option character `\\x%x'.\n",
-                            optopt);
-                return 1;
+                    fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
+                exit(1);
             default:
                 abort();
         }
 
-
-    for (index = optind; index < argc; index++) {
-        cerr << "Non-option argument\n";
-        return 1;
+    if (argv[optind] == nullptr || argv[optind + 1] == nullptr) {
+        printf("Mandatory argument(s) missing\n");
+        exit(1);
     }
+}
 
+
+int main (int argc, char *argv[]) {
+    string mcast_addr;
+    string nazwa_odbiornika;
+    uint32_t data_port;
+    uint32_t ctrl_port;
+    uint32_t psize;
+    uint32_t fsize;
+    uint32_t rtime;
+
+    set_sikradio_sender_arguments(argc, argv, mcast_addr, nazwa_odbiornika,
+                                  data_port, ctrl_port, psize, fsize, rtime);
 
     write_program_parameters(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
 }
