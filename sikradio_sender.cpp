@@ -18,31 +18,15 @@
 #include <fcntl.h>
 #include<ctime>
 
+#include "common.hpp"
 
 using namespace std;
 
-
-uint32_t parse_optarg_to_int(int option, char* optarg) {
-    char * t;
-    auto check = (int64_t)strtol(optarg, &t, 10);
-    if ((*t) != '\0' || t == optarg) {
-        printf("passed argument wrong %c %s\n", (char)option, optarg);
-        exit(1);
-    }
-    if(check < 0) {
-        cerr << "passed argument negative value  " <<(char)(option) << " " << optarg << endl;
-        printf("argument can't be negative have value %c %s\n", (char)option, optarg);
-        exit(1);
-    }
-    auto v = (uint32_t)check;
-    return v;
-}
-
 //./zadanie2 -a "123.123.123.123" -P 1234 -n "spitfire nazwa odbiornika" -C 4444  -p 900 -f 300 -R 250
-void write_program_parameters (string mcast_addr, string nazwa_odbiornika,
-                              uint32_t data_port, uint32_t ctrl_port,
-                              uint32_t psize, uint32_t fsize, uint32_t rtime) {
-    printf("program arguments:\n\
+void write_sikradio_sender_arguments(string mcast_addr, string nazwa_odbiornika,
+                                     uint32_t data_port, uint32_t ctrl_port,
+                                     uint32_t psize, uint32_t fsize, uint32_t rtime) {
+    printf("sikradio_sender arguments:\n\
     mcast_addr: %s\n\
     nazwa_odbiornika: %s\n\
     data_port: %u\n\
@@ -118,5 +102,5 @@ int main (int argc, char *argv[]) {
     set_sikradio_sender_arguments(argc, argv, mcast_addr, nazwa_odbiornika,
                                   data_port, ctrl_port, psize, fsize, rtime);
 
-    write_program_parameters(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
+    write_sikradio_sender_arguments(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
 }
