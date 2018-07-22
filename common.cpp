@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include<ctime>
 #include<climits>
+#include <queue>
 
 #include "common.hpp"
 
@@ -47,6 +48,24 @@ uint32_t parse_optarg_to_number(int option, char *optarg) {
     return (uint32_t)val;
 }
 
+
+
+void Input_fifo_queue::read_input() {
+    memset(tmp, 0, max_size);
+    read(0, tmp, max_size);
+    s = string(tmp);
+    if(s.length() + buff.length() <= max_size)
+        buff += s;
+    else {
+        buff = buff.substr(0,max_size - s.length()) + s;
+    }
+}
+
+string Input_fifo_queue::pop_part(uint32_t pop_size) {
+    string s = buff.substr(0, pop_size);
+    buff = buff.substr(pop_size, buff.length());
+    return s;
+}
 
 
 

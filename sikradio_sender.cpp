@@ -116,7 +116,7 @@ struct retransmission_request {
 
 
 list<retransmission_request> retransmision_requests;
-Input_fifo_queue<100> input_queue;
+Input_fifo_queue input_queue;
 
 int main (int argc, char *argv[]) {
     string mcast_addr;
@@ -135,7 +135,7 @@ int main (int argc, char *argv[]) {
 
     while(true) {
         input_queue.read_input();
-        send_input_to_multicast();
+        send_input_to_multicast(input_queue);
         do_package_retransmission();
     }
 
