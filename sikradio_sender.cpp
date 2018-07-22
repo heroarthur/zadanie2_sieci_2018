@@ -23,6 +23,7 @@
 using namespace std;
 
 //./zadanie2 -a "123.123.123.123" -P 1234 -n "spitfire nazwa odbiornika" -C 4444  -p 900 -f 300 -R 250
+//write_sikradio_sender_arguments(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
 void write_sikradio_sender_arguments(string mcast_addr, string nazwa_odbiornika,
                                      uint32_t data_port, uint32_t ctrl_port,
                                      uint32_t psize, uint32_t fsize, uint32_t rtime) {
@@ -45,7 +46,6 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
                            uint32_t& psize, uint32_t& fsize, uint32_t& rtime) {
     int c;
     opterr = 0;
-    int index;
 
     while ((c = getopt(argc, argv, "a:d:p:b:n:f:P:C:R:")) != -1)
         switch (c) {
@@ -102,5 +102,4 @@ int main (int argc, char *argv[]) {
     set_sikradio_sender_arguments(argc, argv, mcast_addr, nazwa_odbiornika,
                                   data_port, ctrl_port, psize, fsize, rtime);
 
-    write_sikradio_sender_arguments(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
 }

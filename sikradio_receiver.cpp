@@ -22,6 +22,8 @@
 
 
 using namespace std;
+
+//write_sikradio_receiver_arguments(ui_port, ctrl_port, bsize, rtime);
 void write_sikradio_receiver_arguments(uint32_t ui_port, uint32_t ctrl_port,
                                        uint32_t bsize, uint32_t rtime) {
     printf("sikradio_receiver arguments:\n\
@@ -36,7 +38,6 @@ void set_sikradio_receiver_arguments(const int& argc, char **argv,
                                      uint32_t& bsize, uint32_t& rtime) {
     int c;
     opterr = 0;
-    int index;
 
     while ((c = getopt(argc, argv, "b:U:C:R:")) != -1)
         switch (c) {
@@ -80,5 +81,4 @@ int main_ (int argc, char *argv[]) {
 
     set_sikradio_receiver_arguments(argc, argv, ui_port, ctrl_port, bsize, rtime);
 
-    write_sikradio_receiver_arguments(ui_port, ctrl_port, bsize, rtime);
 }
