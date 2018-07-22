@@ -90,6 +90,37 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
 }
 
 
+
+
+
+void read_input_package() {
+
+
+}
+
+void send_input_to_multicast() {
+
+
+
+}
+
+void do_package_retransmission() {
+
+
+    exit(1);
+}
+
+
+struct retrasmission_request {
+    string packages;
+    struct sockaddr_storage retr_addr;
+};
+
+
+list<retrasmission_request> retransmision_requests;
+
+
+
 int main (int argc, char *argv[]) {
     string mcast_addr;
     string nazwa_odbiornika;
@@ -101,5 +132,12 @@ int main (int argc, char *argv[]) {
 
     set_sikradio_sender_arguments(argc, argv, mcast_addr, nazwa_odbiornika,
                                   data_port, ctrl_port, psize, fsize, rtime);
+
+
+    while(true) {
+        read_input_package();
+        send_input_to_multicast();
+        do_package_retransmission();
+    }
 
 }
