@@ -82,24 +82,22 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
             default:
                 abort();
         }
-
+    /*
     if (argv[optind] == nullptr || argv[optind + 1] == nullptr) {
         printf("Mandatory argument(s) missing\n");
         exit(1);
     }
+    */
 }
 
 
 
 
 
-void read_input_package() {
 
 
-}
-
-void send_input_to_multicast() {
-
+void send_input_to_multicast(Input_fifo_queue input_queue) {
+    input_queue.read_input();
 
 
 }
@@ -111,15 +109,14 @@ void do_package_retransmission() {
 }
 
 
-struct retrasmission_request {
+struct retransmission_request {
     string packages;
     struct sockaddr_storage retr_addr;
 };
 
 
-list<retrasmission_request> retransmision_requests;
-
-
+list<retransmission_request> retransmision_requests;
+Input_fifo_queue<100> input_queue;
 
 int main (int argc, char *argv[]) {
     string mcast_addr;
@@ -134,8 +131,10 @@ int main (int argc, char *argv[]) {
                                   data_port, ctrl_port, psize, fsize, rtime);
 
 
+
+
     while(true) {
-        read_input_package();
+        input_queue.read_input();
         send_input_to_multicast();
         do_package_retransmission();
     }
