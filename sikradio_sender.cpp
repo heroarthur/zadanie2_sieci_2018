@@ -28,16 +28,16 @@ using namespace std;
 void write_sikradio_sender_arguments(string mcast_addr, string nazwa_odbiornika,
                                      string data_port, uint32_t ctrl_port,
                                      uint32_t psize, uint32_t fsize, uint32_t rtime) {
-    printf("sikradio_sender arguments:\n\
+    printf("sikradio_sender arguments:\
     mcast_addr: %s\n\
     nazwa_odbiornika: %s\n\
-    data_port: %u\n\
+    data_port: %s\n\
     ctrl_port: %u\n\
     psize: %u\n\
     fsize: %u\n\
     rtime: %u\n",
            mcast_addr.c_str(), nazwa_odbiornika.c_str(),
-           data_port, ctrl_port, psize, fsize, rtime);
+           data_port.c_str(), ctrl_port, psize, fsize, rtime);
 }
 
 
@@ -92,7 +92,7 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
 }
 
 
-
+/*
 void send_input_to_multicast(const string& addres, const string& data_port, const uint32_t psize,
                              Input_fifo_queue& input_queue) {
     static bool socket_initialized = false;
@@ -126,7 +126,7 @@ void send_input_to_multicast(const string& addres, const string& data_port, cons
         }
         freeaddrinfo(servinfo);
     }
-    
+
     if ((numbytes = sendto(sockfd, argv[2], sizeof(char)*psize, 0,
                            p->ai_addr, p->ai_addrlen)) == -1) {
         perror("talker: sendto");
@@ -142,6 +142,8 @@ void send_input_to_multicast(const string& addres, const string& data_port, cons
 
 
 }
+*/
+
 
 void do_package_retransmission() {
 
@@ -157,7 +159,7 @@ struct retransmission_request {
 
 
 list<retransmission_request> retransmision_requests;
-Input_fifo_queue input_queue;
+//Input_packs_queue input_queue;
 
 int main (int argc, char *argv[]) {
     string mcast_addr;
@@ -175,8 +177,8 @@ int main (int argc, char *argv[]) {
 
 
     while(true) {
-        input_queue.read_input();
-        send_input_to_multicast(input_queue);
+        //input_queue.read_input();
+        //send_input_to_multicast(input_queue);
         do_package_retransmission();
     }
 
