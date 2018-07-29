@@ -87,6 +87,6 @@ bool Input_management::pack_available(pack_id id) {
 }
 
 void Input_management::read_input(char* buff) {
-    memset(buff, 0, 128000);
-    read(0, buff, 128000);
+    memset(buff, 0, INPUT_READ_SIZE);
+    read(0, buff, INPUT_READ_SIZE);
 }
