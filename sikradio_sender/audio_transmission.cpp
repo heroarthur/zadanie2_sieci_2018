@@ -125,25 +125,25 @@ void initialize_mcast_connection(datagram_connection& con,
 
 //./zadanie2 -a "123.123.123.123" -P 1234 -n "spitfire nazwa odbiornika" -C 4444  -p 900 -f 300 -R 250
 //write_sikradio_sender_arguments(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
-void write_sikradio_sender_arguments(string mcast_addr, string nazwa_odbiornika,
+void write_sikradio_sender_arguments(string mcast_addr, string nazwa_nadajnika,
                                      string data_port, uint32_t ctrl_port,
                                      uint32_t psize, uint32_t fsize, uint32_t rtime) {
     printf("sikradio_sender arguments:\
     mcast_addr: %s\n\
-    nazwa_odbiornika: %s\n\
+    nazwa_nadajnika: %s\n\
     data_port: %s\n\
     ctrl_port: %u\n\
     psize: %u\n\
     fsize: %u\n\
     rtime: %u\n",
-           mcast_addr.c_str(), nazwa_odbiornika.c_str(),
+           mcast_addr.c_str(), nazwa_nadajnika.c_str(),
            data_port.c_str(), ctrl_port, psize, fsize, rtime);
 }
 
 
 void set_sikradio_sender_arguments(const int& argc, char **argv,
-                                   string& mcast_addr, string& nazwa_odbiornika,
-                                   string& data_port, uint32_t& ctrl_port,
+                                   string& mcast_addr, string& nazwa_nadajnika,
+                                   string& data_port, string& ctrl_port,
                                    uint32_t& psize, uint32_t& fsize, uint32_t& rtime) {
     int c;
     opterr = 0;
@@ -157,10 +157,10 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
                 data_port = string(optarg);
                 break;
             case 'n':
-                nazwa_odbiornika = string(optarg);
+                nazwa_nadajnika = string(optarg);
                 break;
             case 'C':
-                ctrl_port = parse_optarg_to_number('C', optarg);
+                ctrl_port = string(optarg);
                 break;
             case 'p':
                 psize = parse_optarg_to_number('p', optarg);
@@ -186,12 +186,12 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
 }
 
 
-void assign_sikradio_sender_default_arguments(string& nazwa_odbiornika,
-                                              string& data_port, uint32_t& ctrl_port,
+void assign_sikradio_sender_default_arguments(string& nazwa_nadajnika,
+                                              string& data_port, string& ctrl_port,
                                               uint32_t& psize, uint32_t& fsize, uint32_t& rtime) {
-    nazwa_odbiornika = NAZWA_DEF;
-    data_port = DATA_PORT_DEF;
-    ctrl_port = CTRL_PORT_DEF;
+    nazwa_nadajnika = NAZWA_DEF;
+    data_port = to_string(DATA_PORT_DEF);
+    ctrl_port = to_string(CTRL_PORT_DEF);
     psize = PSIZE_DEF;
     fsize = FSIZE_DEF;
     rtime = RTIME_DEF;
