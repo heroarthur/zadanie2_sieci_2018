@@ -25,6 +25,11 @@
 #include "../common/common.hpp"
 
 
+
+const string LOOKUP = "ZERO_SEVEN_COME_IN";
+
+
+
 void set_default_receiver_arguments(string& discover_addr, string& ui_port, string& ctrl_port,
                                     uint32_t& bsize, uint32_t& rtime);
 
@@ -32,6 +37,21 @@ void set_default_receiver_arguments(string& discover_addr, string& ui_port, stri
 void set_sikradio_receiver_arguments(const int& argc, char **argv,
                                      string& discover_addr, string& ui_port, string& ctrl_port,
                                      uint32_t& bsize, uint32_t& rtime);
+
+
+
+void create_datagram_socket(int &sockfd, addrinfo &sendto_addr, const string ip_addr, const string port);
+
+
+
+
+struct sender_addres{
+    string mcast_addr;
+    string data_port;
+    string nazwa_stacji;
+    uint64_t session_id;
+    addrinfo sender_addr_info;
+};
 
 
 class radio_receiver {
@@ -43,9 +63,17 @@ private:
     uint32_t rtime;
 
 
+    int lookup_sockfd;
+    addrinfo lookup_addr;
+
+
 public:
     radio_receiver(string discover_addr_, string ui_port_, string ctrl_port_, uint32_t bsize_, uint32_t rtime_) :
-            discover_addr(discover_addr_), ui_port(ui_port_), ctrl_port(ctrl_port_), bsize(bsize_), rtime(rtime_) {}
+            discover_addr(discover_addr_), ui_port(ui_port_), ctrl_port(ctrl_port_), bsize(bsize_), rtime(rtime_) {
+        create_datagram_socket(lookup_sockfd, lookup_addr, discover_addr, ctrl_port);
+        //zrob je nieblokujace
+
+    }
 
 
     //zero_seven_come_in
