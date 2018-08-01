@@ -22,52 +22,12 @@
 #include "receive_managment.hpp"
 
 
-void sendto_msg(const int& sockfd, const addrinfo& send_addr, const string& msg) {
-    ssize_t numbytes;
-    if ((numbytes = sendto(sockfd, msg.c_str(), msg.length(), 0,
-                           send_addr.ai_addr, send_addr.ai_addrlen)) == -1) {
-        perror("talker: sendto");
-        exit(1);
-    }
-    if(numbytes != msg.length()) {
-        printf("could't send whole message");
-        exit(1);
-    }
-    close(sockfd);
-}
 
-
-void create_datagram_socket(int &sockfd, addrinfo &sendto_addr, const string ip_addr, const string port) {
-    int rv;
-    ssize_t numbytes;
-    struct addrinfo hints, *servinfo, *p;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-
-    if ((rv = getaddrinfo(ip_addr.c_str(), port.c_str(), &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        exit(1);
-    }
-    // loop through all the results and make a socket
-    for(p = servinfo; p != nullptr; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
-            perror("talker: socket");
-            continue;
-        }
-        break;
-    }
-    if (p == nullptr) {
-        fprintf(stderr, "talker: failed to create socket\n");
-        exit(1);
-    }
-}
 
 
 void radio_receiver::send_lookup() {
     if(true) {//minal rtime
-        sendto_msg(lookup_sockfd, lookup_addr, LOOKUP);
+        sendto_msg(lookup_sockfd, lookup_addr, ZERO_SEVEN_COME_IN);
     }
 }
 
@@ -77,6 +37,8 @@ void radio_receiver::receive_senders_identyfication() {
 
 
 }
+
+
 
 
 

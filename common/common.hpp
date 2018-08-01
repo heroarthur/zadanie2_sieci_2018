@@ -36,7 +36,53 @@ const uint32_t RTIME_DEF = 250;
 const string NAZWA_DEF = "Nienazwany Nadajnik";
 
 
-uint32_t parse_optarg_to_number(int option, char *optarg);//zmine nazwe
+
+const string ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN";
+const string LOUDER_PLEASE = "LOUDER_PLEASE";
+const string BOREWICZ_HERE = "BOREWICZ_HERE";
+
+string* CHOOSE_MY_IP = nullptr;
+
+
+
+bool isLookup(string msg);
+bool msgIsRexmit(string msg);
+bool msgIsBorewicz(string msg);
+
+
+const uint32_t first = 0, from_first = 0;
+const uint32_t second = 1, from_second = 1;
+const uint32_t third = 2, from_third = 2;
+const uint32_t fourth = 3, from_fourth = 3;
+
+template<typename T>
+T<string> split_string_to_container(string s, string delimiter) {
+    uint64_t start = 0U;
+    uint64_t end = s.find(delimiter);
+    T<string> l;
+    while (end != string::npos)
+    {
+        l.emplace_back(s.substr(start, end - start));
+        start = end + delimiter.length();
+        end = s.find(delimiter, start);
+    }
+    l.emplace_back(s.substr(start));
+    return l;
+}
+
+template<typename T, uint32_t join_start>
+string join_container_elements(T<string> v, string delimiter) {
+    string s = "";
+    for(auto it = v.begin() + join_start; it != v.end(); it++)
+        s += *it + delimiter;
+    return s;
+}
+
+
+
+
+
+uint32_t parse_optarg_to_number(int option, char *optarg);//zmien nazwe
 
 struct packgs {
     uint64_t first_byte_num;
@@ -133,6 +179,19 @@ public:
         l.splice(l.end(), accepted_part);
     }
 };
+
+
+//zrob jakas strukture na opis polaczenia
+struct Connection {
+    int sockfd;
+    sockaddr_storage send_addr;
+    socklen_t addr_len;
+};
+
+void recv_msg_from(string& recv_msg, const Connection& connection);
+void sendto_msg(Connection& connection, const string& msg);
+void create_datagram_socket(Connection& new_connection, const string& port, string* ip);
+void create_mcast_listeninig_socket(Connection& new_connection, const string mcast_group, const string port);
 
 
 

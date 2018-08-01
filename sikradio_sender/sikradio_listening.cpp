@@ -29,12 +29,10 @@ using namespace std;
 
 const ssize_t listener_buff_size = 1000;
 
-const string LOOKUP = "ZERO_SEVEN_COME_IN";
-const string LOUDER_PLEASE = "LOUDER_PLEASE";
-const string BOREWICZ_HERE = "BOREWICZ_HERE";
 
 
-//ctrl_port nasluchuje na rexmit i LOOKUP
+
+//ctrl_port nasluchuje na rexmit i ZERO_SEVEN_COME_IN
 //data_port na tym porcie receiver ma nasluchiwac na pakiety audio
 
 string reply_communicat(string header, string mcast_addr, string data_port, string nazwa_stacji) {
@@ -61,14 +59,7 @@ void borewicz_here(int sockfd, sockaddr_storage their_addr, socklen_t addr_len, 
 }
 
 
-bool isLookup(string msg) {
-    return LOOKUP.compare(msg.substr(0, LOOKUP.length())) == 0;
-}
 
-
-bool isRexmit(string msg) {
-    return LOUDER_PLEASE.compare(msg.substr(0, LOUDER_PLEASE.length())) == 0;
-}
 
 list rexmit_to_list(string rexmit) {
     string parse_text = rexmit.substr(LOUDER_PLEASE.length()+1);
@@ -95,12 +86,12 @@ void bind_rexmit_lookup_listener(int& sockfd, string ctrl_port) {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, ctrl_port.c_str(), &hints, &servinfo)) != 0) {
-        fprintf(stderr, "rexmit/LOOKUP thread listener getaddrinfo: %s\n", gai_strerror(rv));
+    if ((rv = getaddrinfo(nullptr, ctrl_port.c_str(), &hints, &servinfo)) != 0) {
+        fprintf(stderr, "rexmit/ZERO_SEVEN_COME_IN thread listener getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
     // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
+    for(p = servinfo; p != nullptr; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
                              p->ai_protocol)) == -1) {
             perror("listener: socket");
@@ -152,8 +143,10 @@ void *listening_rexmit_lookup(void *thread_data) {
         if(isLookup(recv_msg)) {
             borewicz_here(sockfd, their_addr, addr_len, reply_msg);
         }
-        if(isRexmit(recv_msg)) {
-            rexmit_requests_list->insert(rexmit_to_list(recv_msg));
+        if(msgIsRexmit(recv_msg)) {//odpal tu function template zeby dalo sie i liste i vector
+            rexmit_requests_list->insert(
+                    split_string_to_container<std::list>
+                            (recv_msg.substr(LOUDER_PLEASE.length() + 1), ","));
         }
     }
 
