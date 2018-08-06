@@ -108,7 +108,7 @@ void Input_management::read_input(char* buff) {
 
 
 
-void recv_msg_from(string& recv_msg, const Connection& connection) {
+void recv_msg_from(string& recv_msg, Connection& connection) {
     static const uint32_t buff_size = 10000;
     static char buff[buff_size];
     memset(buff, 0, buff_size);
@@ -166,7 +166,7 @@ void create_datagram_socket(Connection& new_connection, const string& port, stri
     new_connection.addr_len = p->ai_addrlen;
 }
 
-void create_mcast_listeninig_socket(Connection& new_connection, const string mcast_group, const string port) {
+void change_connection_multicast(Connection &new_connection, const string mcast_group, const string port) {
     create_datagram_socket(new_connection, port, CHOOSE_MY_IP);
     u_int yes=1;
     struct ip_mreq mreq;
@@ -184,6 +184,7 @@ void create_mcast_listeninig_socket(Connection& new_connection, const string mca
 
 
 
+void
 
 
 

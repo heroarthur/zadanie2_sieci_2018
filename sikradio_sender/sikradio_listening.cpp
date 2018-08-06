@@ -121,7 +121,7 @@ void *listening_rexmit_lookup(void *thread_data) {
     concurrent_uniqe_list *rexmit_requests_list = config->ret_list;
     string reply_msg = reply_communicat(BOREWICZ_HERE, mcast_addr, data_port, nazwa_stacji);
 
-    int sockfd;
+    int rexmit_lookup_sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;
     ssize_t numbytes;
@@ -130,18 +130,24 @@ void *listening_rexmit_lookup(void *thread_data) {
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-    bind_rexmit_lookup_listener(sockfd, ctrl_port);
+    bind_rexmit_lookup_listener(rexmit_lookup_sockfd, ctrl_port);
+    fcntl(rexmit_lookup_sockfd, F_SETFL, O_NONBLOCK);
+    fcntl(rexmit_lookup_sockfd, F_SETFL, O_ASYNC);
+
+
     addr_len = sizeof their_addr;
     string recv_msg;
     while(true) {
-        if ((numbytes = recvfrom(sockfd, buf, listener_buff_size-1 , 0,
+        if ((numbytes = recvfrom(rexmit_lookup_sockfd, buf, listener_buff_size-1 , 0,
                                  (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-            perror("recvfrom");
-            exit(1);
+            if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {//nie widze duzego sensu w oszczedzaniu cpu selectem
+                perror("recvfrom");
+                exit(1);
+            }
         }
         recv_msg = string(buf);
         if(isLookup(recv_msg)) {
-            borewicz_here(sockfd, their_addr, addr_len, reply_msg);
+            borewicz_here(rexmit_lookup_sockfd, their_addr, addr_len, reply_msg);
         }
         if(msgIsRexmit(recv_msg)) {//odpal tu function template zeby dalo sie i liste i vector
             rexmit_requests_list->insert(

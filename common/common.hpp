@@ -188,10 +188,10 @@ struct Connection {
     socklen_t addr_len;
 };
 
-void recv_msg_from(string& recv_msg, const Connection& connection);
+void recv_msg_from(string& recv_msg, Connection& connection);
 void sendto_msg(Connection& connection, const string& msg);
 void create_datagram_socket(Connection& new_connection, const string& port, string* ip);
-void create_mcast_listeninig_socket(Connection& new_connection, const string mcast_group, const string port);
+void change_connection_multicast(Connection &new_connection, const string mcast_group, const string port);
 
 
 

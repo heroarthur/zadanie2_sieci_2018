@@ -56,15 +56,12 @@ void create_datagram_socket(int &sockfd, addrinfo &sendto_addr, const string ip_
 
 
 
-struct sender_addres{//dodan Connection, popraw i uprosc architekture
+struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
+    Connection con_for_rexmit;
     string mcast_addr;
     string data_port;
     string nazwa_stacji;
     uint64_t first_byte;
-    uint64_t session_id;
-    struct sockaddr_storage sender_addr_info;
-    //addrinfo sender_addr_info;
-    socklen_t addr_len;
     bool first_byte_set;
 };
 
@@ -78,8 +75,8 @@ struct sender_addres{//dodan Connection, popraw i uprosc architekture
 class radio_receiver {
 private:
     struct transmitter_comp {
-        bool operator() (const sender_addres& lhs, const sender_addres& rhs) const
-        {return 0 < memcmp(&lhs.sender_addr_info, &rhs.sender_addr_info, sizeof(sender_addres));}//dodaj porownanie potem
+        bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
+        {return 0 < memcmp(&lhs.con_for_rexmit, &rhs.con_for_rexmit, sizeof(struct Connection));}//dodaj porownanie potem
         //by uzyskac sortowanie po nazwach
     };
 
@@ -90,14 +87,15 @@ private:
     uint32_t rtime;
 
 
+    uint64_t session_id;
     uint32_t coherent_waiting_packgs;
     uint64_t biggest_received_pack_num;
-    sender_addres current_transmitter;
+    transmitter_addr current_transmitter;
     vector<packgs> audio_buff;
-    std::set<sender_addres, transmitter_comp> finded_transmitters;
+    std::set<transmitter_addr, transmitter_comp> finded_transmitters;
 
     int lookup_sockfd;
-    addrinfo lookup_addr;
+    Connection con_lookup_msg;
 
 
     void restart_audio();
@@ -112,7 +110,7 @@ public:
 
     radio_receiver(string discover_addr_, string ui_port_, string ctrl_port_, uint32_t bsize_, uint32_t rtime_) :
             discover_addr(discover_addr_), ui_port(ui_port_), ctrl_port(ctrl_port_), bsize(bsize_), rtime(rtime_) {
-        create_datagram_socket(lookup_sockfd, lookup_addr, discover_addr, ctrl_port);
+        create_datagram_socket(con_lookup_msg, ctrl_port, &discover_addr);
         //zrob je nieblokujace
 
     }
@@ -169,6 +167,7 @@ void radio_receiver::receive_senders_identyfication() {
     socklen_t addr_len;
     string recv_msg;
     recv_msg_from(recv_msg, lookup_sockfd, (struct sockaddr *)&their_addr, addr_len);
+    //void recv_msg_from(string& recv_msg, const Connection& connection);
     if (recvfrom(lookup_sockfd, buff, sizeof(buff), 0, (struct sockaddr *)&their_addr, &addr_len)) {
         perror("recvfrom");
         exit(1);
@@ -176,7 +175,7 @@ void radio_receiver::receive_senders_identyfication() {
     string msg = string(buff);
     if(!msgIsBorewicz(msg)) return;
     vector<string> l = split_string_to_container(msg, " ");
-    sender_addres new_transmitter;
+    transmitter_addr new_transmitter;
     new_transmitter.mcast_addr = l[second];
     new_transmitter.data_port = l[third];
     new_transmitter.nazwa_stacji = join_container_elements<std::vector, from_fourth>(l, " ");
