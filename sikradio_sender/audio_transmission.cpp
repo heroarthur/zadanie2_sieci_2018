@@ -28,7 +28,7 @@ using namespace std;
 
 
 
-bool retransmission_time(const uint32_t &rtime) {
+bool next_retransmission_time(const uint32_t &rtime) {
     static clock_t last_check = clock();
     float diff = (clock() - last_check)*100;
     if(diff < rtime)
@@ -46,80 +46,38 @@ void create_audio_pack(uint64_t session_id, packgs &p, char *tr_pack) {
 }
 
 
-void send_datagram(datagram_connection& con, char* datagram, uint32_t size) {
-    static ssize_t numbytes;
-    if ((numbytes = sendto(con.sockfd, datagram, size, 0,
-                           con.p->ai_addr, con.p->ai_addrlen)) == -1) {
-        perror("talker: sendto");
-        exit(1);
-    }
-}
-
-
-void emit_series_of_ordered_packages(datagram_connection& con, Input_management &input_queue) {
+void emit_series_of_ordered_packages(int sockfd, Connection_addres& con, Input_management &input_queue) {
     static auto* datagram = new char[2*sizeof(uint64_t) + input_queue.psize + 1]();//SO will clean it anyway
     static packgs next_pack;
 
     while(input_queue.next_pack_available()) {
         input_queue.get_next_pack(next_pack);
         create_audio_pack(input_queue.session_id, next_pack, datagram);
-        send_datagram(con, datagram, input_queue.audio_pack_size);
+        sendto_msg(sockfd, con, datagram, input_queue.audio_pack_size);
     }
 }
 
 
-void emit_single_package(datagram_connection& con, pack_id id, Input_management &input_queue) {
+void emit_single_package(int sockfd, Connection_addres& con, pack_id id, Input_management &input_queue) {
     static auto* datagram = new char[2*sizeof(uint64_t) + input_queue.psize + 1]();//SO will clean it anyway
     static packgs pack;
 
     if(input_queue.pack_available(id)) {
         input_queue.get_pack(pack, id);
         create_audio_pack(input_queue.session_id, pack, datagram);
-        send_datagram(con, datagram,  input_queue.audio_pack_size);
+        sendto_msg(sockfd, con, datagram, input_queue.audio_pack_size);
     }
 }
 
 
-void packs_retransmission(datagram_connection& con, concurrent_uniqe_list<string> &ret_list, Input_management &input_queue) {
+void packs_retransmission(int sockd, Connection_addres& con, concurrent_uniqe_list<string> &ret_list, Input_management &input_queue) {
     static std::list<string> ret_packs;
     ret_list.ret_uniqe_list(ret_packs);
     for (const pack_id &id : ret_packs) {
-        emit_single_package(con, id, input_queue);
+        emit_single_package(sockd, con, id, input_queue);
     }
 }
 
-
-void initialize_mcast_connection(datagram_connection& con,
-                                 const string &addres, const string &data_port){
-    static int rv;
-    static int numbytes;
-    struct packgs next_pack;
-    static struct addrinfo hints, *servinfo;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-
-    if ((rv = getaddrinfo(addres.c_str(), data_port.c_str(), &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        exit(1);
-    }
-    // loop through all the results and make a socket
-    for(con.p = servinfo; con.p != nullptr; con.p = con.p->ai_next) {
-        if ((con.sockfd = socket(con.p->ai_family, con.p->ai_socktype,
-                                 con.p->ai_protocol)) == -1) {
-            perror("talker: socket");
-            continue;
-        }
-
-        break;
-    }
-    if (con.p == nullptr) {
-        fprintf(stderr, "talker: failed to create socket\n");
-        exit(1);
-    }
-    freeaddrinfo(servinfo);
-}
 
 
 

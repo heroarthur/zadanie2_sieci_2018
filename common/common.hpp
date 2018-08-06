@@ -23,6 +23,8 @@
 
 using namespace std;
 
+#define USE_MY_IP nullptr
+
 
 const uint32_t numer_albumu = 371869;
 const string DISCOVER_ADDR_DEF = "255.255.255.255";
@@ -54,6 +56,10 @@ const uint32_t first = 0, from_first = 0;
 const uint32_t second = 1, from_second = 1;
 const uint32_t third = 2, from_third = 2;
 const uint32_t fourth = 3, from_fourth = 3;
+
+
+const uint32_t RECVFROM_BUFF_SIZE = 2000;
+
 
 template<typename T>
 T<string> split_string_to_container(string s, string delimiter) {
@@ -89,10 +95,6 @@ struct packgs {
     string bytes;
 };
 
-struct datagram_connection {
-    int sockfd;
-    struct addrinfo *p;
-};
 
 
 template <typename key, typename q_type>
@@ -181,18 +183,22 @@ public:
 };
 
 
-//zrob jakas strukture na opis polaczenia
-struct Connection {
-    int sockfd;
-    sockaddr_storage send_addr;
-    socklen_t addr_len;
+
+//new connection design
+struct Connection_addres {
+    struct sockaddr_storage ai_addr;
+    socklen_t ai_addrlen;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
 };
 
-void recv_msg_from(string& recv_msg, Connection& connection);
-void sendto_msg(Connection& connection, const string& msg);
-void create_datagram_socket(Connection& new_connection, const string& port, string* ip);
-void change_connection_multicast(Connection &new_connection, const string mcast_group, const string port);
 
+void fill_connection_struct(Connection_addres &connection, struct addrinfo *servinfo);
+void get_communication_addr(Connection_addres& connection, const char* ip_addr, const char* port);
+void receive_pending_messages(int sockfd, list<string> messages);
+void create_socket_binded_to_new_mcast_addr(const char* mcast_addr, const char* data_port);
+void sendto_msg(int sockfd ,Connection_addres& connection, const char* msg, const uint64_t msg_len);
 
 
 

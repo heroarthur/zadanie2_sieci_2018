@@ -26,21 +26,17 @@
 using namespace std;
 
 
-bool retransmission_time(const uint32_t &rtime);
+bool next_retransmission_time(const uint32_t &rtime);
 
 void create_audio_pack(uint64_t session_id, packgs &p, char *tr_pack);
 
-void send_datagram(datagram_connection& con, char* datagram, uint32_t size);
+void emit_series_of_ordered_packages(int sockfd, Connection_addres& con, Input_management &input_queue);
 
-void emit_series_of_ordered_packages(datagram_connection& con, Input_management &input_queue);
+void emit_single_package(int sockfd, Connection_addres& con, pack_id id, Input_management &input_queue);
 
-void emit_single_package(datagram_connection& con, pack_id id, Input_management &input_queue);
-
-void packs_retransmission(datagram_connection& con, concurrent_uniqe_list<string> &ret_list, Input_management &input_queue);
-
-
-void initialize_mcast_connection(datagram_connection& con,
-                                 const string &addres, const string &data_port);
+void packs_retransmission(int sockd, Connection_addres& con,
+                          concurrent_uniqe_list<string> &ret_list,
+                          Input_management &input_queue);
 
 
 void write_sikradio_sender_arguments(string mcast_addr, string nazwa_nadajnika,

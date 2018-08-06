@@ -28,12 +28,12 @@ using namespace std;
 
 
 const ssize_t listener_buff_size = 1000;
-
-
-
-
 //ctrl_port nasluchuje na rexmit i ZERO_SEVEN_COME_IN
 //data_port na tym porcie receiver ma nasluchiwac na pakiety audio
+
+
+
+
 
 string reply_communicat(string header, string mcast_addr, string data_port, string nazwa_stacji) {
     //BOREWICZ_HERE [MCAST_ADDR] [DATA_PORT] [nazwa stacji]
@@ -44,21 +44,6 @@ string reply_communicat(string header, string mcast_addr, string data_port, stri
             + nazwa_stacji + del;
     return reply;
 }
-
-void borewicz_here(int sockfd, sockaddr_storage their_addr, socklen_t addr_len, string borewicz_reply) {
-    int numbytes;
-    if (numbytes = (sendto(sockfd, borewicz_reply.c_str(), borewicz_reply.length(), 0,
-                           (struct sockaddr *)&their_addr, addr_len)) == -1) {
-        perror("talker: sendto");
-        exit(1);
-    }
-    if(numbytes != borewicz_reply.length()) {
-        perror("talker: sendto send only part of message");
-        exit(1);
-    }
-}
-
-
 
 
 list rexmit_to_list(string rexmit) {
@@ -77,77 +62,34 @@ list rexmit_to_list(string rexmit) {
 }
 
 
-
-void bind_rexmit_lookup_listener(int& sockfd, string ctrl_port) {
-    int rv;
-    struct addrinfo hints, *servinfo, *p;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
-
-    if ((rv = getaddrinfo(nullptr, ctrl_port.c_str(), &hints, &servinfo)) != 0) {
-        fprintf(stderr, "rexmit/ZERO_SEVEN_COME_IN thread listener getaddrinfo: %s\n", gai_strerror(rv));
-        exit(1);
-    }
-    // loop through all the results and bind to the first we can
-    for(p = servinfo; p != nullptr; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
-            perror("listener: socket");
-            continue;
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("listener: bind");
-            continue;
-        }
-        break;
-    }
-    if (p == nullptr) {
-        fprintf(stderr, "listener: failed to bind socket\n");
-        exit(2);
-    }
-    freeaddrinfo(servinfo);
-}
-
-
 void *listening_rexmit_lookup(void *thread_data) {
     listening_thread_configuration* config = (listening_thread_configuration*)thread_data;
     string ctrl_port = config->ctrl_port;
     string mcast_addr = config->mcast_addr;
     string data_port = config->data_port;
-    string nazwa_stacji = config->data_port;
+    string nazwa_stacji = config->nazwa_stacji;
     concurrent_uniqe_list *rexmit_requests_list = config->ret_list;
     string reply_msg = reply_communicat(BOREWICZ_HERE, mcast_addr, data_port, nazwa_stacji);
 
     int rexmit_lookup_sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    ssize_t numbytes;
-    struct sockaddr_storage their_addr;
-    char buf[listener_buff_size];
-    socklen_t addr_len;
-    char s[INET6_ADDRSTRLEN];
+    Connection_addres rexmit_lookup_addr{};
+    get_communication_addr(rexmit_lookup_addr, USE_MY_IP, ctrl_port.c_str());
 
-    bind_rexmit_lookup_listener(rexmit_lookup_sockfd, ctrl_port);
-    fcntl(rexmit_lookup_sockfd, F_SETFL, O_NONBLOCK);
-    fcntl(rexmit_lookup_sockfd, F_SETFL, O_ASYNC);
+    int reply_identyfication_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    Connection_addres requester_addr;
 
-
-    addr_len = sizeof their_addr;
+    char buff[RECVFROM_BUFF_SIZE];
     string recv_msg;
+
     while(true) {
-        if ((numbytes = recvfrom(rexmit_lookup_sockfd, buf, listener_buff_size-1 , 0,
-                                 (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-            if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {//nie widze duzego sensu w oszczedzaniu cpu selectem
-                perror("recvfrom");
-                exit(1);
-            }
+        if (recvfrom(rexmit_lookup_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0,
+                                 (struct sockaddr *)&requester_addr.ai_addr, &requester_addr.ai_addrlen) == -1) {
+            perror("recvfrom");
+            exit(1);
         }
-        recv_msg = string(buf);
+        recv_msg = string(buff);
         if(isLookup(recv_msg)) {
-            borewicz_here(rexmit_lookup_sockfd, their_addr, addr_len, reply_msg);
+            sendto_msg(reply_identyfication_sockfd, requester_addr, reply_msg.c_str(), reply_msg.length());
         }
         if(msgIsRexmit(recv_msg)) {//odpal tu function template zeby dalo sie i liste i vector
             rexmit_requests_list->insert(
@@ -155,8 +97,4 @@ void *listening_rexmit_lookup(void *thread_data) {
                             (recv_msg.substr(LOUDER_PLEASE.length() + 1), ","));
         }
     }
-
-
-
-
 }

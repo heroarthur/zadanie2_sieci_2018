@@ -3,7 +3,6 @@
 
 
 struct listening_thread_configuration {
-    //int thread_id;
     string ctrl_port;
     string mcast_addr;
     string data_port;

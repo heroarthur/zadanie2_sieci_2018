@@ -108,83 +108,91 @@ void Input_management::read_input(char* buff) {
 
 
 
-void recv_msg_from(string& recv_msg, Connection& connection) {
-    static const uint32_t buff_size = 10000;
-    static char buff[buff_size];
-    memset(buff, 0, buff_size);
-    if (recvfrom(connection.sockfd, buff, buff_size, 0,
-                 (struct sockaddr *)&connection.send_addr,
-                 &connection.addr_len)) {
-        perror("recvfrom");
-        exit(1);
-    }
-    recv_msg = string(buff);
+void fill_connection_struct(Connection_addres &connection, struct addrinfo *servinfo) {
+    connection.ai_addr = *(sockaddr_storage*)(servinfo->ai_addr);
+    connection.ai_addrlen = servinfo->ai_addrlen;
+    connection.ai_family = servinfo->ai_family;
+    connection.ai_socktype = servinfo->ai_socktype;
+    connection.ai_protocol = servinfo->ai_protocol;
 }
 
 
-void sendto_msg(Connection& connection, const string& msg) {
-    ssize_t numbytes;
-    if ((numbytes = sendto(connection.sockfd, msg.c_str(), msg.length(), 0,
-                           (struct sockaddr *)&connection.send_addr,
-                           connection.addr_len)) == -1) {
-        perror("talker: sendto");
-        exit(1);
-    }
-    if(numbytes != msg.length()) {
-        printf("could't send whole message");
-        exit(1);
-    }
-}
-
-
-void create_datagram_socket(Connection& new_connection, const string& port, string* ip) {
+void get_communication_addr(Connection_addres& connection, const char* ip_addr, const char* port) {
     int rv;
-    ssize_t numbytes;
-    struct addrinfo hints, *servinfo, *p;
+    struct addrinfo hints, *servinfo;
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET; // set to AF_INET to force IPv4
     hints.ai_socktype = SOCK_DGRAM;
-
-    if ((rv = getaddrinfo(ip != nullptr ? (*ip).c_str():nullptr , port.c_str(), &hints, &servinfo)) != 0) {
+    if(ip_addr == USE_MY_IP)
+        hints.ai_flags = AI_PASSIVE; // use my IP
+    if ((rv = getaddrinfo(ip_addr, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
-    // loop through all the results and make a socket
-    for(p = servinfo; p != nullptr; p = p->ai_next) {
-        if ((new_connection.sockfd = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
-            perror("talker: socket");
-            continue;
-        }
-        break;
-    }
-    if (p == nullptr) {
-        fprintf(stderr, "talker: failed to create socket\n");
-        exit(1);
-    }
-    new_connection.send_addr = *(sockaddr_storage*)p->ai_addr;
-    new_connection.addr_len = p->ai_addrlen;
+    fill_connection_struct(connection, servinfo);
+    freeaddrinfo(servinfo); //sprawdz z brake czy wartosci sie skopiowaly poprawnie
 }
 
-void change_connection_multicast(Connection &new_connection, const string mcast_group, const string port) {
-    create_datagram_socket(new_connection, port, CHOOSE_MY_IP);
-    u_int yes=1;
-    struct ip_mreq mreq;
-    mreq.imr_multiaddr.s_addr=inet_addr(mcast_group.c_str());
+
+void receive_pending_messages(int sockfd, list<string> messages) {
+    static char buff[RECVFROM_BUFF_SIZE];
+    bool socket_clear = false;
+    messages.clear();
+
+    while(!socket_clear) {
+        memset(buff, 0, sizeof buff);
+        if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, nullptr, nullptr) == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                socket_clear = true;
+                continue;
+            }
+            else {
+                perror("recvfrom");
+                exit(1);
+            }
+        }
+        messages.emplace_back(string(buff));
+    }
+}
+
+
+void create_socket_binded_to_new_mcast_addr(const char* mcast_addr, const char* data_port) {
+    int mcast_sockfd;
+    Connection_addres myLocation{};
+    get_communication_addr(myLocation, USE_MY_IP, data_port);
+    mcast_sockfd = socket(myLocation.ai_family, myLocation.ai_socktype, myLocation.ai_protocol);
+    if (bind(mcast_sockfd, (struct sockaddr*)&myLocation.ai_addr, myLocation.ai_addrlen) == -1) {
+        close(mcast_sockfd);
+        perror("listener: bind");
+    }
+    u_int enable=1;
+    struct ip_mreq mreq{};
+    mreq.imr_multiaddr.s_addr=inet_addr(mcast_addr);
     mreq.imr_interface.s_addr=htonl(INADDR_ANY);
-    if (setsockopt(new_connection.sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes)) < 0) {
+    if (setsockopt(mcast_sockfd,SOL_SOCKET,SO_REUSEADDR,&enable,sizeof(enable)) < 0) {
         perror("Reusing ADDR failed");
         exit(1);
     }
-    if (setsockopt(new_connection.sockfd,IPPROTO_IP,IP_ADD_MEMBERSHIP,&mreq,sizeof(mreq)) < 0) {
+    if (setsockopt(mcast_sockfd,IPPROTO_IP,IP_ADD_MEMBERSHIP,&mreq,sizeof(mreq)) < 0) {
         perror("setsockopt");
         exit(1);
     }
 }
 
 
-
-void
+void sendto_msg(int sockfd ,Connection_addres& connection, const char* msg, const uint64_t msg_len) {
+    ssize_t numbytes;
+    if ((numbytes = sendto(sockfd, msg, msg_len, 0,
+                           (struct sockaddr *)&connection.ai_addr,
+                           connection.ai_addrlen)) == -1) {
+        perror("talker: sendto");
+        exit(1);
+    }
+    if(numbytes != msg_len) {
+        printf("could't send whole message");
+        exit(1);
+    }
+}
 
 
 
