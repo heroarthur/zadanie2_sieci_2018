@@ -25,21 +25,41 @@
 
 
 
-void radio_receiver::send_lookup() {
-    if(true) {//minal rtime
-        sendto_msg(lookup_sockfd, lookup_addr, ZERO_SEVEN_COME_IN);
+void broadcast_lookup(int sockfd, Connection_addres broadcast_addr, const char* msg, const uint64_t msg_len) {
+    sendto_msg(sockfd, broadcast_addr, msg, msg_len);
+}
+
+
+void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter) {
+    vector<string> l = split_string_to_container(identyfication.text, " ");
+    transmitter = {};
+    transmitter.mcast_addr = l[second];
+    transmitter.data_port = l[third];
+    transmitter.nazwa_stacji = join_container_elements<std::vector, from_fourth>(l, " ");
+    time(&transmitter.last_reported);
+    transmitter.direct_rexmit_con = identyfication.sender_addr;
+}
+
+
+void update_sender_identyfication(const recv_msg& identyfication, transmitters_set& transmitters) {
+    if(!msgIsBorewicz(identyfication.text)) return;
+    transmitter_addr new_transmitter;
+    parse_identyfication(identyfication, new_transmitter);
+    auto tr = transmitters.find(new_transmitter);
+    if(tr != transmitters.end()) {
+        time(&tr->last_reported);
+    }
+    else {
+        transmitters.insert(new_transmitter);
     }
 }
 
-
-void radio_receiver::receive_senders_identyfication() {
-    //dopoki mozesz odbieraj z non blocking socket
-
-
+void receive_senders_identyfication(int recv_sockfd, transmitters_set transmitters) {
+    static list<recv_msg> recv_identyfications;
+    receive_pending_messages(recv_sockfd, recv_identyfications);
+    for (const recv_msg& id : recv_identyfications)
+        update_sender_identyfication(id, transmitters);
 }
-
-
-
 
 
 

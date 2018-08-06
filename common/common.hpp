@@ -193,10 +193,16 @@ struct Connection_addres {
     int ai_protocol;
 };
 
+struct recv_msg {
+    string text;
+    Connection_addres sender_addr;
+};
+
+
 
 void fill_connection_struct(Connection_addres &connection, struct addrinfo *servinfo);
 void get_communication_addr(Connection_addres& connection, const char* ip_addr, const char* port);
-void receive_pending_messages(int sockfd, list<string> messages);
+void receive_pending_messages(int sockfd, list<recv_msg> messages);
 void create_socket_binded_to_new_mcast_addr(const char* mcast_addr, const char* data_port);
 void sendto_msg(int sockfd ,Connection_addres& connection, const char* msg, const uint64_t msg_len);
 

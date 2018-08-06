@@ -30,17 +30,6 @@ using namespace std;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 void set_default_receiver_arguments(string& discover_addr, string& ui_port, string& ctrl_port,
                                     uint32_t& bsize, uint32_t& rtime);
 
@@ -57,28 +46,26 @@ void create_datagram_socket(int &sockfd, addrinfo &sendto_addr, const string ip_
 
 
 struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
-    Connection con_for_rexmit;
+    Connection_addres direct_rexmit_con;
     string mcast_addr;
     string data_port;
     string nazwa_stacji;
-    uint64_t first_byte;
-    bool first_byte_set;
+    time_t last_reported;
 };
 
+struct transmitter_comp {
+    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
+    {return 0 < memcmp(&lhs.direct_rexmit_con, &rhs.direct_rexmit_con, sizeof(struct Connection_addr));}//dodaj porownanie potem
+    //by uzyskac sortowanie po nazwach
+};
 
-
-
-
+typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
 
 
 
 class radio_receiver {
 private:
-    struct transmitter_comp {
-        bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
-        {return 0 < memcmp(&lhs.con_for_rexmit, &rhs.con_for_rexmit, sizeof(struct Connection));}//dodaj porownanie potem
-        //by uzyskac sortowanie po nazwach
-    };
+
 
     string discover_addr;
     string ui_port;
@@ -94,7 +81,10 @@ private:
     vector<packgs> audio_buff;
     std::set<transmitter_addr, transmitter_comp> finded_transmitters;
 
-    int lookup_sockfd;
+    int broadcast_socket;
+    Connection_addres broadcast_addr{};
+
+    get_communication_addr(rexmit_lookup_addr, USE_MY_IP, ctrl_port.c_str());
     Connection con_lookup_msg;
 
 
@@ -161,30 +151,16 @@ void radio_receiver::restart_audio() {
 };
 
 
-void radio_receiver::receive_senders_identyfication() {
-    static char buff[10000];
-    struct sockaddr_storage their_addr;
-    socklen_t addr_len;
-    string recv_msg;
-    recv_msg_from(recv_msg, lookup_sockfd, (struct sockaddr *)&their_addr, addr_len);
-    //void recv_msg_from(string& recv_msg, const Connection& connection);
-    if (recvfrom(lookup_sockfd, buff, sizeof(buff), 0, (struct sockaddr *)&their_addr, &addr_len)) {
-        perror("recvfrom");
-        exit(1);
-    }
-    string msg = string(buff);
-    if(!msgIsBorewicz(msg)) return;
-    vector<string> l = split_string_to_container(msg, " ");
-    transmitter_addr new_transmitter;
-    new_transmitter.mcast_addr = l[second];
-    new_transmitter.data_port = l[third];
-    new_transmitter.nazwa_stacji = join_container_elements<std::vector, from_fourth>(l, " ");
-    new_transmitter.sender_addr_info = their_addr;
-    new_transmitter.addr_len = addr_len;
-    if(finded_transmitters.find(new_transmitter) != finded_transmitters.end()) {
-        finded_transmitters.insert(new_transmitter);
-    }
-};
+
+
+
+void broadcast_lookup(int sockfd, Connection_addres broadcast_addr, const char* msg, const uint64_t msg_len);
+
+void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
+
+void update_sender_identyfication(const recv_msg& identyfication, transmitters_set& transmitters);
+
+void receive_senders_identyfication(int recv_sockfd, transmitters_set transmitters);
 
 
 #endif //ZADANIE2_RECEIVE_MANAGMENT_HPP

@@ -134,14 +134,17 @@ void get_communication_addr(Connection_addres& connection, const char* ip_addr, 
 }
 
 
-void receive_pending_messages(int sockfd, list<string> messages) {
+void receive_pending_messages(int sockfd, list<recv_msg> messages) {
     static char buff[RECVFROM_BUFF_SIZE];
     bool socket_clear = false;
     messages.clear();
+    recv_msg m;
 
     while(!socket_clear) {
         memset(buff, 0, sizeof buff);
-        if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, nullptr, nullptr) == -1) {
+        if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0,
+                     (sockaddr*)&m.sender_addr.ai_addr,
+                     &m.sender_addr.ai_addrlen) == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 socket_clear = true;
                 continue;
@@ -151,7 +154,8 @@ void receive_pending_messages(int sockfd, list<string> messages) {
                 exit(1);
             }
         }
-        messages.emplace_back(string(buff));
+        m.text = string(buff);
+        messages.emplace_back(m);
     }
 }
 
