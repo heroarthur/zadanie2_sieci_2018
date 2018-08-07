@@ -40,79 +40,7 @@ void set_sikradio_receiver_arguments(const int& argc, char **argv,
 
 
 
-void create_datagram_socket(int &sockfd, addrinfo &sendto_addr, const string ip_addr, const string port);
 
-
-
-
-struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
-    Connection_addres direct_rexmit_con;
-    string mcast_addr;
-    string data_port;
-    string nazwa_stacji;
-    time_t last_reported;
-};
-
-struct transmitter_comp {
-    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
-    {return 0 < memcmp(&lhs.direct_rexmit_con, &rhs.direct_rexmit_con, sizeof(struct Connection_addr));}//dodaj porownanie potem
-    //by uzyskac sortowanie po nazwach
-};
-
-typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
-
-
-
-class radio_receiver {
-private:
-
-
-    string discover_addr;
-    string ui_port;
-    string ctrl_port;
-    uint32_t bsize;
-    uint32_t rtime;
-
-
-    uint64_t session_id;
-    uint32_t coherent_waiting_packgs;
-    uint64_t biggest_received_pack_num;
-    transmitter_addr current_transmitter;
-    vector<packgs> audio_buff;
-    std::set<transmitter_addr, transmitter_comp> finded_transmitters;
-
-    int broadcast_socket;
-    Connection_addres broadcast_addr{};
-
-    get_communication_addr(rexmit_lookup_addr, USE_MY_IP, ctrl_port.c_str());
-    Connection con_lookup_msg;
-
-
-    void restart_audio();
-    void assign_to_next_mcast();
-
-
-
-
-
-
-public:
-
-    radio_receiver(string discover_addr_, string ui_port_, string ctrl_port_, uint32_t bsize_, uint32_t rtime_) :
-            discover_addr(discover_addr_), ui_port(ui_port_), ctrl_port(ctrl_port_), bsize(bsize_), rtime(rtime_) {
-        create_datagram_socket(con_lookup_msg, ctrl_port, &discover_addr);
-        //zrob je nieblokujace
-
-    }
-    //zero_seven_come_in
-    //zbierz rezultaty (non blocking socket dopoki nie empty) -> uaktualnij liste dostepnych odbiornikow
-    //sproboj odebrac (non blocking socket dopuki nie empty)
-    //wywal na wyjscie min(2/3*wszystkie dostepne bez brakow, 1)
-    //prosba o retransmisje
-    void send_lookup();
-    void receive_senders_identyfication();
-    void manage_audio_package();
-};
 
 /*
      * Rozpoczynając odtwarzanie, odbiornik:
@@ -130,7 +58,63 @@ public:
     na to pozwala.*/
 
 
-void radio_receiver::assign_to_next_mcast() {
+
+
+struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
+    Connection_addres direct_rexmit_con;
+    string mcast_addr;
+    string data_port;
+    string nazwa_stacji;
+    time_t last_reported;
+};
+
+
+struct current_transmitter_session {
+    uint64_t session_id;
+    uint32_t coherent_waiting_packgs;
+    uint64_t biggest_received_pack_num;
+    uint64_t first_byte;
+    Connection_addres transmitter_addr;
+    bool session_established;
+};
+
+struct transmitter_comp {
+    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
+    {return 0 < memcmp(&lhs.direct_rexmit_con, &rhs.direct_rexmit_con, sizeof(struct Connection_addr));}//dodaj porownanie potem
+    //by uzyskac sortowanie po nazwach
+};
+
+typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
+
+void manage_receive_audio() {
+    static current_transmitter_session session{};
+    static vector<packgs> audio_buff;
+    if(!session.session_established) {
+        //sproboj zapisac i zrestartowac i nowy mcast
+        //assign_to_next_mcast();
+        //restart_audio();
+    }
+    if(!session.session_established) return;
+    //pobierz ile sie da, ustawiajac session id i numer pierwszej paczki
+    if(//nastepeny rexmit) {
+            //wyslij rexmit
+    }
+    //przekaz dane na wyjscie
+}
+
+
+void broadcast_lookup(int sockfd, Connection_addres broadcast_addr, const char* msg, const uint64_t msg_len);
+
+void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
+
+void update_sender_identyfication(const recv_msg& identyfication, transmitters_set& transmitters);
+
+void receive_senders_identyfication(int recv_sockfd, transmitters_set transmitters);
+
+void clear_not_reported_transmitters(transmitters_set transmitters);
+
+/*
+void assign_to_next_mcast() {
     if(finded_transmitters.empty()) return;
     auto it = finded_transmitters.begin();
     current_transmitter = *it;
@@ -138,7 +122,7 @@ void radio_receiver::assign_to_next_mcast() {
 }
 
 
-void radio_receiver::restart_audio() {
+void restart_audio() {
     audio_buff.clear();
     if(&current_transmitter == nullptr)
         assign_to_next_mcast();
@@ -149,18 +133,7 @@ void radio_receiver::restart_audio() {
         //bind to mcast adres jak napisze ogolna funcke z socketem
     }
 };
-
-
-
-
-
-void broadcast_lookup(int sockfd, Connection_addres broadcast_addr, const char* msg, const uint64_t msg_len);
-
-void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
-
-void update_sender_identyfication(const recv_msg& identyfication, transmitters_set& transmitters);
-
-void receive_senders_identyfication(int recv_sockfd, transmitters_set transmitters);
+*/
 
 
 #endif //ZADANIE2_RECEIVE_MANAGMENT_HPP

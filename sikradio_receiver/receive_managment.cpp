@@ -63,7 +63,14 @@ void receive_senders_identyfication(int recv_sockfd, transmitters_set transmitte
 
 
 
-
+void clear_not_reported_transmitters(transmitters_set& transmitters) {
+    time_t current_time = time(nullptr);
+    for (const transmitter_addr& tr : transmitters) {
+        if(difftime(tr.last_reported, current_time) > 20) {
+            transmitters.erase(tr);
+        }
+    }
+}
 
 
 

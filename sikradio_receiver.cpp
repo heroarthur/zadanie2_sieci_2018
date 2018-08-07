@@ -36,10 +36,11 @@ int main_ (int argc, char *argv[]) {
     uint32_t bsize;
     uint32_t rtime;
 
+    set_default_receiver_arguments(discover_addr, ui_port, ctrl_port, bsize, rtime);
+
     set_sikradio_receiver_arguments(argc, argv, discover_addr, ui_port, ctrl_port, bsize, rtime);
     transmitters_set finded_transmitters;
 
-    radio_receiver receiver = radio_receiver(discover_addr, ui_port, ctrl_port, bsize, rtime);
 
 
     int broadcast_sockfd;
@@ -65,5 +66,6 @@ int main_ (int argc, char *argv[]) {
                          ZERO_SEVEN_COME_IN.c_str(), ZERO_SEVEN_COME_IN.length());
         receive_senders_identyfication(recv_senders_id, finded_transmitters);
         //receiver.manage_audio_package();
+        clear_not_reported_transmitters(finded_transmitters);
     }
 }
