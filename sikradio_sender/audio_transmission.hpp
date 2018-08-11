@@ -20,15 +20,14 @@
 #include <fcntl.h>
 #include<ctime>
 
-#include "../common/common.hpp"
-#include "../common/datagram_packing.hpp"
+//#include "../common/common.hpp"
 
 using namespace std;
 
 
 bool next_retransmission_time(const uint32_t &rtime);
 
-void create_audio_pack(uint64_t session_id, packgs &p, char *tr_pack);
+void create_audio_pack(uint64_t session_id, byte_container &p, char *tr_pack, const ssize_t packs_size);
 
 void emit_series_of_ordered_packages(int sockfd, Connection_addres& con, Input_management &input_queue);
 

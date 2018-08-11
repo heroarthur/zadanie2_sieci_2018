@@ -7,7 +7,7 @@ struct listening_thread_configuration {
     string mcast_addr;
     string data_port;
     string nazwa_stacji;
-    concurrent_uniqe_list *ret_list;
+    concurrent_uniqe_list<string> *ret_list;
 };
 
 

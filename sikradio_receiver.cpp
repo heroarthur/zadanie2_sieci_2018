@@ -19,6 +19,10 @@
 #include<ctime>
 #include<set>
 
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "common/common.hpp"
 
@@ -28,19 +32,34 @@ using namespace std;
 
 
 
+bool message_pending(int& fd, fd_set& readfds) {
+    static struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
 
-int main_ (int argc, char *argv[]) {
+    select(fd+1, &readfds, nullptr, nullptr, &tv);
+
+    if (FD_ISSET(fd, &readfds))
+        return true;
+    return false;
+}
+
+
+int main (int argc, char *argv[]) {
     string discover_addr;
     string ui_port;
     string ctrl_port;
+    string data_port;
     uint32_t bsize;
     uint32_t rtime;
 
-    set_default_receiver_arguments(discover_addr, ui_port, ctrl_port, bsize, rtime);
 
-    set_sikradio_receiver_arguments(argc, argv, discover_addr, ui_port, ctrl_port, bsize, rtime);
+    set_default_receiver_arguments(discover_addr, ui_port, ctrl_port, data_port, bsize, rtime);
+
+    //set_sikradio_receiver_arguments(argc, argv, discover_addr, ui_port, ctrl_port, bsize, rtime);
     transmitters_set finded_transmitters;
 
+    uint16_t ctrl_port_num = parse_optarg_to_number(0, ctrl_port.c_str());
 
 
     int broadcast_sockfd;
@@ -56,16 +75,32 @@ int main_ (int argc, char *argv[]) {
 
     int recv_senders_id;
     recv_senders_id = socket(AF_INET, SOCK_DGRAM, 0);
+    Connection_addres recv_senders_con{};
+    get_communication_addr(recv_senders_con, USE_MY_IP, ctrl_port.c_str());
+    int l = 1;
+    setsockopt(recv_senders_id, SOL_SOCKET, SO_REUSEADDR, &l, sizeof(int));
+    bind_socket(recv_senders_id, recv_senders_con);
     fcntl(recv_senders_id, F_SETFL, O_NONBLOCK);
-    fcntl(recv_senders_id, F_SETFL, O_ASYNC);
+
+
+
+    struct sockaddr their_addr;
+    socklen_t addr_len;
+    fd_set readfds;
+
+    FD_ZERO(&readfds);
+    FD_SET(recv_senders_id, &readfds);
+
+    // don't care about writefds and exceptfds:
 
 
 
     while(true) {
-        broadcast_lookup(broadcast_sockfd, broadcast_location,
-                         ZERO_SEVEN_COME_IN.c_str(), ZERO_SEVEN_COME_IN.length());
-        receive_senders_identyfication(recv_senders_id, finded_transmitters);
-        //receiver.manage_audio_package();
-        clear_not_reported_transmitters(finded_transmitters);
+        broadcast_lookup<5000>(broadcast_sockfd, broadcast_location,
+                        ZERO_SEVEN_COME_IN.c_str(), ZERO_SEVEN_COME_IN.length());
+        if(message_pending(recv_senders_id, readfds))
+            receive_senders_identyfication(recv_senders_id, finded_transmitters);
+        manage_receive_audio(send_rexmit_sockfd, ctrl_port_num, bsize, finded_transmitters, rtime);
+        //clear_not_reported_transmitters(finded_transmitters);
     }
 }

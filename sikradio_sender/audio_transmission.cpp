@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include<ctime>
 
+
 #include "../common/common.hpp"
 #include "../common/datagram_packing.hpp"
 
@@ -38,21 +39,23 @@ bool next_retransmission_time(const uint32_t &rtime) {
 }
 
 
-void create_audio_pack(uint64_t session_id, packgs &p, char *tr_pack) {
+void create_audio_pack(uint64_t session_id, byte_container &p, char *tr_pack, const ssize_t packs_size) {
     memset(tr_pack, 0, sizeof(tr_pack));
-    strcat_number(session_id, tr_pack);
-    strcat_number(p.first_byte_num, tr_pack);
-    strcat(const_cast<char *>(p.bytes.c_str()), tr_pack);
+    strcat_number<uint64_t>(session_id, tr_pack, 0);
+    strcat_number<uint64_t>(p.first_byte_num, tr_pack, sizeof(uint64_t));
+    //strcat(const_cast<char *>(p.bytes.c_str()), tr_pack);
+    p.write_to_array(tr_pack, sizeof(uint64_t)*2, packs_size);
+    //memcpy((void *) p.bytes.c_str(), tr_pack + 2 * sizeof(uint64_t), p.bytes.length());
 }
 
 
 void emit_series_of_ordered_packages(int sockfd, Connection_addres& con, Input_management &input_queue) {
     static auto* datagram = new char[2*sizeof(uint64_t) + input_queue.psize + 1]();//SO will clean it anyway
-    static packgs next_pack;
+    static byte_container next_pack;
 
     while(input_queue.next_pack_available()) {
         input_queue.get_next_pack(next_pack);
-        create_audio_pack(input_queue.session_id, next_pack, datagram);
+        create_audio_pack(input_queue.session_id, next_pack, datagram, input_queue.psize);
         sendto_msg(sockfd, con, datagram, input_queue.audio_pack_size);
     }
 }
@@ -60,11 +63,11 @@ void emit_series_of_ordered_packages(int sockfd, Connection_addres& con, Input_m
 
 void emit_single_package(int sockfd, Connection_addres& con, pack_id id, Input_management &input_queue) {
     static auto* datagram = new char[2*sizeof(uint64_t) + input_queue.psize + 1]();//SO will clean it anyway
-    static packgs pack;
+    static byte_container pack;
 
     if(input_queue.pack_available(id)) {
         input_queue.get_pack(pack, id);
-        create_audio_pack(input_queue.session_id, pack, datagram);
+        create_audio_pack(input_queue.session_id, pack, datagram, input_queue.psize);
         sendto_msg(sockfd, con, datagram, input_queue.audio_pack_size);
     }
 }
@@ -73,6 +76,7 @@ void emit_single_package(int sockfd, Connection_addres& con, pack_id id, Input_m
 void packs_retransmission(int sockd, Connection_addres& con, concurrent_uniqe_list<string> &ret_list, Input_management &input_queue) {
     static std::list<string> ret_packs;
     ret_list.ret_uniqe_list(ret_packs);
+
     for (const pack_id &id : ret_packs) {
         emit_single_package(sockd, con, id, input_queue);
     }
