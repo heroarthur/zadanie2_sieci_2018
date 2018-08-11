@@ -150,6 +150,7 @@ void receive_pending_packs(current_transmitter_session& session) {
 
     uint32_t received_in_frame = 0;
     while(!socket_clear && received_in_frame < RECEIVE_LIMIT) {
+        if(received_in_frame == RECEIVE_LIMIT) printf("RECEIVE_LIMIT\n");
         m = recv_msg{};
         //memset(buff, 0, sizeof buff);
         if ((numbytes = recvfrom(session.mcast_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, nullptr, nullptr)) == -1) {
@@ -179,7 +180,7 @@ void receive_pending_packs(current_transmitter_session& session) {
         if(session.next_packg_to_stdin <= first_byte_num)
             session.packs_dict->insert(first_byte_num, packgs{first_byte_num, recv_raw_bytes});
         session.biggest_received_pack = max<uint64_t>(session.biggest_received_pack, first_byte_num);
-        //("received packed %d \n", (int)session.packs_dict->length()); TODO
+        printf("received packed %d \n", (int)session.packs_dict->length()); //TODO
 
         while(session.biggest_received_pack > session.last_coherent_waiting_packgs &&
               session.packs_dict->contain(session.last_coherent_waiting_packgs + session.psize)) {
@@ -194,7 +195,7 @@ void send_rexmit(int rexmit_sockfd, current_transmitter_session& session) {
     if(session.missing_packages.empty()) return;
     string missing_packgage_msg = join_container_elements<set<string> >(session.missing_packages, ",");
     string louder_please_msg = LOUDER_PLEASE + " " + missing_packgage_msg;
-    //printf("%s \n", louder_please_msg.c_str()); TODO
+    printf("%s \n", louder_please_msg.c_str());// TODO
     sendto_msg(rexmit_sockfd, session.tr_addr, louder_please_msg.c_str(), louder_please_msg.length(), session.rexmit_port);
 }
 
@@ -226,7 +227,7 @@ void write_audio_to_stdin(current_transmitter_session& session) {
         if(session.packs_dict->contain(next_to_sent)) {
             p = session.packs_dict->get(next_to_sent);
             p.bytes.write_to_array(write_buff, 0, session.psize);
-            //printf("%ll \n", session.next_packg_to_stdin); TODO
+            printf("%ll \n", session.next_packg_to_stdin); //TODO
         }
         else {
             session.SESSION_ESTABLISHED = false;

@@ -102,7 +102,7 @@ bool Input_management::pack_available(pack_id id) {
 
 void Input_management::read_input(byte_container& msg) {
     static ROUND_TIMER t(250);
-    while(!t.new_round_start()) {}
+    //while(!t.new_round_start()) {}
 
     char arr[16] = "go_spitfireeeee";
     msg.emplace_back(arr, 0, 16);
