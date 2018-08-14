@@ -22,6 +22,9 @@
 #include<ctime>
 #include <queue>
 #include <cassert>
+#include <set>
+#include <map>
+
 
 #include <sys/time.h>
 
@@ -63,7 +66,119 @@ const uint32_t fourth = 3, from_fourth = 3;
 
 
 const uint32_t RECVFROM_BUFF_SIZE = 10000;
-const uint32_t WRITE_BUFF_SIZE = 100000;
+const uint32_t WRITE_BUFF_SIZE = 10000;
+
+
+//new connection design
+struct Connection_addres {
+    struct sockaddr ai_addr;
+    socklen_t ai_addrlen;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+};
+
+struct recv_msg {
+    string text;
+    Connection_addres sender_addr;
+};
+
+
+uint64_t current_time_sec();
+
+
+
+struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
+    Connection_addres direct_rexmit_con;
+    string mcast_addr;
+    string data_port;
+    string nazwa_stacji;
+    mutable uint64_t last_reported_sec;
+};
+
+struct transmitter_comp {
+    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
+    {
+        if(lhs.nazwa_stacji == rhs.nazwa_stacji)
+            return 0 < memcmp(&lhs.direct_rexmit_con.ai_addr, &rhs.direct_rexmit_con.ai_addr, sizeof(sockaddr));
+        else
+            return lhs.nazwa_stacji < rhs.nazwa_stacji;
+    }
+};
+
+
+
+template<uint64_t diff>
+bool last_report_older_than(uint64_t last_report_sec) {
+    static struct timeval tval;
+    if(gettimeofday(&tval, nullptr) == 0) {
+        uint64_t current_time_sec = (uint64_t)tval.tv_sec;
+        return current_time_sec > diff + last_report_sec;
+    }
+    return false;
+}
+
+
+
+
+
+typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
+
+class availabile_transmitters {
+private:
+    transmitters_set transmitters;
+    pthread_mutex_t	mutex;
+    volatile bool t;
+
+public:
+    availabile_transmitters () {
+        mutex = PTHREAD_MUTEX_INITIALIZER;
+        if (pthread_mutex_init(&mutex, nullptr) != 0)
+        {
+            printf("\n availabile_transmitters mutex initialization failed\n");
+            exit(1);
+        }
+    }
+
+    void update_transmitter(transmitter_addr& new_transmitter) {
+        pthread_mutex_lock(&mutex);
+        //new_transmitter.last_reported_sec = current_time_sec();
+        auto tr = transmitters.find(new_transmitter); //transmitters_set::iterator
+        if(tr != transmitters.end()) {
+            (tr)-> last_reported_sec = current_time_sec();
+        }
+        else {
+            transmitters.insert(new_transmitter);
+        }
+        pthread_mutex_unlock(&mutex);
+    }
+
+    bool empty() {
+        t = transmitters.empty();
+        return t;
+    }
+
+    bool get_next_transmitter(transmitter_addr& ret_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
+        if(!transmitters.empty()) {
+            pthread_mutex_lock(&mutex);
+            ret_transmitter = *transmitters.begin();
+            pthread_mutex_unlock(&mutex);
+            return true;
+        }
+        return false;
+    }
+
+    void clear_not_reported_transmitters() {
+        time_t current_time = time(nullptr);
+        for (const transmitter_addr& tr : transmitters) {
+            if(last_report_older_than<20>(tr.last_reported_sec)) {
+                transmitters.erase(tr);
+            }
+        }
+    }
+};
+
+
 
 
 template<typename T>
@@ -124,6 +239,13 @@ private:
 
 public:
     limited_dict (uint32_t max_size_): max_size(max_size_) {}
+    bool two_highest_keys(key& previous, key& highest) {
+        if(dict.size() < 2) return false;
+        previous = prev(dict.end(), 2)->first;
+        highest = prev(dict.end(), 1)->first;
+        return true;
+    };
+    void ret_underlying_map(map<key,q_type>& ret_map) {ret_map.swap(dict); dict.clear(); while(keys_fifo.size()>0) keys_fifo.pop();}
     void set_max_size(uint32_t new_max_size) {max_size = new_max_size;}
     bool contain(key k) {return dict.find(k) != dict.end();}
     bool empty() {return dict.empty();}
@@ -143,21 +265,64 @@ public:
 
 
 
+
+
+template <typename key, typename q_type>
+class limited_concurrent_map {
+private:
+    uint32_t max_size;
+    std::map<key,q_type> dict;
+    pthread_mutex_t	mutex;
+
+public:
+    limited_concurrent_map (uint32_t max_size_): max_size(max_size_) {
+        mutex = PTHREAD_MUTEX_INITIALIZER;
+        if (pthread_mutex_init(&mutex, nullptr) != 0)
+        {
+            printf("\n limited_concurrent_dict mutex initialization failed\n");
+            exit(1);
+        }
+    }
+    void set_max_size(uint32_t new_max_size) {max_size = new_max_size;}
+
+    void clear() {
+        pthread_mutex_lock(&mutex);
+        dict.clear();
+        pthread_mutex_unlock(&mutex);
+    }
+
+    void insert(key elem_id, q_type elem) { //std::list<q_type> insert(list<q_type>& l)
+        pthread_mutex_lock(&mutex);
+        if(dict.find(elem_id) != dict.end()) {
+            dict[elem_id] = elem;
+        }
+        pthread_mutex_unlock(&mutex);
+    }
+    void ret_uniqe_map(std::map<key,q_type> ret_map) {//    void ret_uniqe_list(list<q_type>& l) {
+        ret_map.clear();
+        pthread_mutex_lock(&mutex);
+        ret_map.merge(dict);
+        dict.clear();
+        pthread_mutex_unlock(&mutex);
+    }
+};
+
+
+
+
+
+
+
 template <typename q_type>
 class concurrent_uniqe_list {
 public:
     //uint32_t max_size;
     uint32_t psize;
-    std::list<q_type> accepted_part;
-    std::list<q_type> waiting_tail;
+    std::list<q_type> l;
+    //std::list<q_type> waiting_tail;
     pthread_mutex_t	mutex;
 
-    void merge_accepted_with_tail() {
-        pthread_mutex_lock(&mutex);
-        accepted_part.splice(accepted_part.end(), waiting_tail);
-        pthread_mutex_unlock(&mutex);
 
-    }
 public:
     concurrent_uniqe_list() {
         //pthread_mutex_lock(&mutex);
@@ -170,19 +335,26 @@ public:
     }
     void insert(list<q_type>& l) { //std::list<q_type> insert(list<q_type>& l)
         pthread_mutex_lock(&mutex);
-        waiting_tail.splice(waiting_tail.end(), l);
+        l.splice(l.end(), l);
         pthread_mutex_unlock(&mutex);
     }
     void ret_uniqe_list(list<q_type>& l) {//    void ret_uniqe_list(list<q_type>& l) {
-
-        merge_accepted_with_tail();
-
         l.clear();
-        accepted_part.unique();
-        accepted_part.sort();
-        l.splice(l.end(), accepted_part);
+        pthread_mutex_lock(&mutex);
+        l.unique();
+        l.sort();
+        l.splice(l.end(), l);
+        pthread_mutex_unlock(&mutex);
+    }
+    void clear() {
+        pthread_mutex_lock(&mutex);
+        l.clear();
+        pthread_mutex_unlock(&mutex);
     }
 };
+
+
+
 
 
 
@@ -196,18 +368,22 @@ public:
     byte_container(vector<char>::iterator beg, vector<char>::iterator end, uint64_t first_byte_num_) {
         bytes.clear(); bytes.assign(beg, end); first_byte_num = first_byte_num_;
     };
+    byte_container(vector<char> input_bytes, vector<char>::iterator end, uint64_t first_byte_num_) {
+        bytes.clear(); bytes.swap(input_bytes); first_byte_num = first_byte_num_;
+    };
+
+
     void clear() {bytes.clear();}
     void write_to_array(char* arr, uint32_t beg, ssize_t write_len) {
         for(int i = 0; i < bytes.size(); i++) {
             arr[beg + i] = bytes[i];
         }
     }
-    byte_container pop_to_container(ssize_t pop_len, uint64_t fb_num) {
+    void pop_to_container(ssize_t pop_len, uint64_t fb_num, byte_container& new_container) {
         assert(bytes.size() >= pop_len);
-        byte_container new_container = byte_container(bytes.begin(), bytes.begin()+pop_len, fb_num);
+        new_container = byte_container(bytes.begin(), bytes.begin()+pop_len, fb_num);
         bytes.erase(bytes.begin(), bytes.begin()+pop_len);
         first_byte_num += pop_len;
-        return new_container;
     }
     ssize_t size() {return bytes.size();}
 
@@ -253,7 +429,7 @@ private:
 
 public:
     uint32_t psize;
-    uint64_t session_id = 123456789;
+    uint64_t session_id;
     uint32_t audio_pack_size;
 
     Input_management(uint32_t psize_, uint32_t fsize_):
@@ -262,7 +438,7 @@ public:
         //stdin_debug_fd=fopen("bytes_input", "r");
         //psize = (uint32_t)strlen("spitfire_package");
         audio_pack_size = sizeof(session_id) + sizeof(first_byte_num) + psize;
-
+        session_id = current_time_sec();
     }
     bool next_pack_available();
     bool pack_available(pack_id id);
@@ -270,6 +446,8 @@ public:
     void get_next_pack(byte_container& p);
     void get_pack(byte_container& p, pack_id id);
 };
+
+
 
 
 
@@ -302,36 +480,15 @@ public:
 
 
 
-uint64_t current_time_sec();
-
-
-template<uint64_t diff>
-bool last_report_older_than(uint64_t last_report_sec) {
-    static struct timeval tval;
-    if(gettimeofday(&tval, nullptr) == 0) {
-        uint64_t current_time_sec = (uint64_t)tval.tv_sec;
-        return current_time_sec > diff + last_report_sec;
-    }
-    return false;
-}
 
 
 
 
 
-//new connection design
-struct Connection_addres {
-    struct sockaddr ai_addr;
-    socklen_t ai_addrlen;
-    int ai_family;
-    int ai_socktype;
-    int ai_protocol;
-};
 
-struct recv_msg {
-    string text;
-    Connection_addres sender_addr;
-};
+void get_int64_bit_value(const char* datagram, uint64_t& val, int beg);
+
+
 
 
 
@@ -343,6 +500,7 @@ void sendto_msg(int& sockfd ,const Connection_addres& connection, const char* ms
 void sendto_msg(int& sockfd ,Connection_addres connection, const char* msg, const uint64_t msg_len, uint16_t destination_port);
 void bind_socket(int& sockfd, Connection_addres& connection);
 
+inline uint64_t unrolled(std::string const& value);
 
 
 

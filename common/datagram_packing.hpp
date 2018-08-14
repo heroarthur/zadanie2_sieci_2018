@@ -37,24 +37,14 @@ void strcat_number(num n, char* datagram, uint32_t begin_pos) {
 }
 
 //template <typename num>
-void get_int64_bit_value(const char* datagram, uint64_t& val, int beg) {
-    uint8_t a[8];
-    mempcpy(a, datagram + beg, sizeof(uint64_t));
-    //v = *((uint64_t*) a);
-    for(int i = 0; i < sizeof(uint64_t); i++) {
-        ((uint8_t*)&val)[i] = ((uint8_t*) a)[i];
-    }
-    val = be64toh(val);
-}
 
-/*
 void strcat_number(uint64_t v, char* datagram) {
     uint64_t net_order = htobe64(v);
     for (int i=0; i<8 ;++i) {
         strcat(datagram, (const char*)((uint8_t*)&net_order)[i]);
     }
 }
-*/
+
 
 
 #endif //ZADANIE2_DATAGRAM_PACKING_HPP

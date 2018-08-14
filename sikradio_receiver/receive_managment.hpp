@@ -22,6 +22,8 @@
 #include <fcntl.h>
 #include<ctime>
 #include <set>
+#include <atomic>
+
 
 #include "../common/common.hpp"
 
@@ -60,16 +62,10 @@ void set_sikradio_receiver_arguments(const int& argc, char **argv,
 
 
 
-struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
-    Connection_addres direct_rexmit_con;
-    string mcast_addr;
-    string data_port;
-    string nazwa_stacji;
-    mutable uint64_t last_reported_sec;
-};
 
 
-struct current_transmitter_session {
+/*
+ * struct current_transmitter_session {
     int mcast_sockfd;
     string mcast_addr;
     string data_port;
@@ -80,7 +76,7 @@ struct current_transmitter_session {
     uint32_t psize;
     uint32_t bsize;
     set<packgs> audio_buff;
-    limited_dict<uint64_t, packgs>* packs_dict;
+    limited_concurrent_map<uint64_t, byte_container>* packs_dict;
     set<string> missing_packages;
 
     bool SESSION_ESTABLISHED;
@@ -91,22 +87,35 @@ struct current_transmitter_session {
     uint64_t last_coherent_waiting_packgs;
     uint64_t next_packg_to_stdin;
 };
+ * */
+
+struct current_transmitter_session {
+    //std::atomic<bool> SESSION_ESTABLISHED(false);
+    bool SESSION_ESTABLISHED;
+    bool FIRST_PACKS_RECEIVED;
+
+    int mcast_sockfd;
+    fd_set mcast_fd_set;
+
+    string mcast_addr;
+    string data_port;
+    uint16_t ctrl_port_u16;
+
+    transmitter_addr current_transmitter;
+    //limited_concurrent_map<uint64_t, byte_container>* packs_dict;
+    limited_dict<uint64_t, byte_container>* packs_dict;
+
+    uint64_t byte0;
+    uint64_t session_id;
+    uint32_t psize;
+};
 
 void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session);
 
 
 
-struct transmitter_comp {
-    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
-    {
-        if(lhs.nazwa_stacji == rhs.nazwa_stacji)
-            return 0 < memcmp(&lhs.direct_rexmit_con.ai_addr, &rhs.direct_rexmit_con.ai_addr, sizeof(sockaddr));
-        else
-            return lhs.nazwa_stacji < rhs.nazwa_stacji;
-    }
-};
 
-typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
+
 
 
 /*
@@ -140,12 +149,12 @@ void restart_audio() {
 
 void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port);
 
-void restart_audio_player(current_transmitter_session& session, transmitters_set& availabile_transmiters);
+void restart_audio_player(current_transmitter_session& session, availabile_transmitters& transmitters, uint16_t ctrl_port_u16);
 
 
 
 
-void receive_pending_packs(current_transmitter_session& session);
+//void receive_pending_packs(current_transmitter_session& session);
 
 void send_rexmit(int rexmit_sockfd, current_transmitter_session& session);
 
@@ -153,24 +162,15 @@ void send_rexmit(int rexmit_sockfd, current_transmitter_session& session);
 void update_rexmit(current_transmitter_session& session);
 //BYTE0 + ⌊BSIZE*3/4⌋
 
-void write_audio_to_stdin(current_transmitter_session& session);
+//void write_audio_to_stdin(current_transmitter_session& session);
 
 
 
-void manage_receive_audio(int rexmit_sockfd, uint16_t rexmit_port, const uint32_t bsize, transmitters_set& availabile_transmiters, const uint32_t& rexmit_time);
+void manage_receive_audio(int rexmit_sockfd, uint16_t rexmit_port, const uint32_t bsize, transmitters_set& availabile_transmiters, const uint32_t& rexmit_time, current_transmitter_session& session);
 
 
 
 
-template<uint64_t repeat_interval>
-void broadcast_lookup(int sockfd, Connection_addres broadcast_addr, const char* msg, const uint64_t msg_len) {
-    static uint64_t last_send = current_time_sec();
-    static uint64_t cur_time_sec = current_time_sec();
-    if(last_send + repeat_interval > cur_time_sec){
-        sendto_msg(sockfd, broadcast_addr, msg, msg_len);
-        last_send = cur_time_sec;
-    }
-}
 
 void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
 

@@ -68,9 +68,11 @@ void Input_management::load_packs_from_input() {
     static byte_container unfinished_pack = byte_container();
     static uint32_t pack_start;
     read_input(readed_bytes);//emplace back wszystkie wczytane bajty
+    byte_container new_conteiner;
 
     while(readed_bytes.size() >= psize) {
-        dict.insert(to_string(next_unused_package_num), readed_bytes.pop_to_container(psize, next_unused_package_num));
+        readed_bytes.pop_to_container(psize, next_unused_package_num, new_conteiner);
+        dict.insert(to_string(next_unused_package_num), new_conteiner);
         next_unused_package_num += psize;
     }
 }
@@ -90,8 +92,8 @@ void Input_management::get_pack(byte_container& p, pack_id id) {
 bool Input_management::next_pack_available() {
     if(dict.empty()) return false;
     string max_key = dict.last_inserted_key();
-    std::istringstream iss(max_key);
-    uint64_t k; iss >> k;
+    //std::istringstream iss(max_key);
+    uint64_t k = unrolled(max_key);
     return next_availabile_package_num <= k;
 };
 
@@ -101,11 +103,12 @@ bool Input_management::pack_available(pack_id id) {
 }
 
 void Input_management::read_input(byte_container& msg) {
-    static ROUND_TIMER t(250);
-    //while(!t.new_round_start()) {}
+    static ROUND_TIMER t(1);
+    while(!t.new_round_start()) {}
+    string s(PSIZE_DEF, 'a');
+    //char arr[PSIZE_DEF]; = s.c_str();
 
-    char arr[16] = "go_spitfireeeee";
-    msg.emplace_back(arr, 0, 16);
+    msg.emplace_back(s.c_str(), 0, PSIZE_DEF);
     //memset(msg.buff, 0, INPUT_READ_SIZE);
     //read(0, msg.buff, INPUT_READ_SIZE);
     //fgets(buff, 512, (FILE*)stdin_debug_fd);
@@ -164,6 +167,7 @@ void get_communication_addr(Connection_addres& connection, const char* ip_addr, 
 }
 
 
+
 void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
     static char buff[RECVFROM_BUFF_SIZE];
     bool socket_clear = false;
@@ -187,6 +191,9 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
                 continue;
             }
         }
+
+
+
         m.text = string(buff);
         m.sender_addr.ai_addr = their_addr;
         m.sender_addr.ai_addrlen = addr_len;
@@ -196,10 +203,24 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
 }
 
 
+
+void get_int64_bit_value(const char* datagram, uint64_t& val, int beg) {
+    uint8_t a[8];
+    mempcpy(a, datagram + beg, sizeof(uint64_t));
+    //v = *((uint64_t*) a);
+    for(int i = 0; i < sizeof(uint64_t); i++) {
+        ((uint8_t*)&val)[i] = ((uint8_t*) a)[i];
+    }
+    val = be64toh(val);
+}
+
+
+
 void create_socket_binded_to_new_mcast_addr(int& mcast_sockfd, const char* mcast_addr, const char* data_port) {
+    close(mcast_sockfd);
+    mcast_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     Connection_addres myLocation{};
     get_communication_addr(myLocation, USE_MY_IP, data_port);
-    mcast_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     bind_socket(mcast_sockfd, myLocation);
     fcntl(mcast_sockfd, F_SETFL, O_NONBLOCK);
     u_int enable=1;
@@ -224,7 +245,6 @@ void sendto_msg(int& sockfd ,const Connection_addres& connection, const char* ms
                            &(connection.ai_addr),
                            connection.ai_addrlen)) == -1) {
         perror("talker: sendto");
-        printf("spitfire1\n");
         exit(1);
     }
 }
@@ -238,11 +258,38 @@ void sendto_msg(int& sockfd ,Connection_addres connection, const char* msg, cons
                            &(connection.ai_addr),
                            connection.ai_addrlen)) == -1) {
         perror("talker: sendto");
-        printf("spitfire2\n");
         exit(1);
     }
 }
 
 
+inline uint64_t unrolled(std::string const& value) {
+    uint64_t result = 0;
+
+    size_t const length = value.size();
+    switch (length) {
+        case 20:    result += (value[length - 20] - '0') * 10000000000000000000ULL;
+        case 19:    result += (value[length - 19] - '0') * 1000000000000000000ULL;
+        case 18:    result += (value[length - 18] - '0') * 100000000000000000ULL;
+        case 17:    result += (value[length - 17] - '0') * 10000000000000000ULL;
+        case 16:    result += (value[length - 16] - '0') * 1000000000000000ULL;
+        case 15:    result += (value[length - 15] - '0') * 100000000000000ULL;
+        case 14:    result += (value[length - 14] - '0') * 10000000000000ULL;
+        case 13:    result += (value[length - 13] - '0') * 1000000000000ULL;
+        case 12:    result += (value[length - 12] - '0') * 100000000000ULL;
+        case 11:    result += (value[length - 11] - '0') * 10000000000ULL;
+        case 10:    result += (value[length - 10] - '0') * 1000000000ULL;
+        case  9:    result += (value[length -  9] - '0') * 100000000ULL;
+        case  8:    result += (value[length -  8] - '0') * 10000000ULL;
+        case  7:    result += (value[length -  7] - '0') * 1000000ULL;
+        case  6:    result += (value[length -  6] - '0') * 100000ULL;
+        case  5:    result += (value[length -  5] - '0') * 10000ULL;
+        case  4:    result += (value[length -  4] - '0') * 1000ULL;
+        case  3:    result += (value[length -  3] - '0') * 100ULL;
+        case  2:    result += (value[length -  2] - '0') * 10ULL;
+        case  1:    result += (value[length -  1] - '0');
+    }
+    return result;
+}
 
 

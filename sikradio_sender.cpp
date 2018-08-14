@@ -29,11 +29,22 @@
 using namespace std;
 
 
+
+
+const ssize_t listener_buff_size = 1000;
+//ctrl_port nasluchuje na rexmit i ZERO_SEVEN_COME_IN
+//data_port na tym porcie receiver ma nasluchiwac na pakiety audio
+
+
+
+
+
+
 int main (int argc, char *argv[]) {
-    string mcast_addr = "224.0.0.3";
-    string nazwa_nadajnika;
-    string data_port;
-    string ctrl_port;
+    std::string mcast_addr = "224.0.0.3";
+    std::string nazwa_nadajnika;
+    std::string data_port;
+    std::string ctrl_port;
     uint32_t psize;
     uint32_t fsize;
     uint32_t rtime;
@@ -56,14 +67,19 @@ int main (int argc, char *argv[]) {
 
 
 
-    psize = 16;
+    //psize = 16;
     Input_management input_queue(psize, fsize);
 
     pthread_t listener;
-    struct listening_thread_configuration thread_conf{ctrl_port, mcast_addr, data_port,
-                                               nazwa_nadajnika, &retransmision_requests};
+    listening_thread_configuration thread_conf;//, &retransmision_requests};
+    memset((void*)&thread_conf, 0, sizeof thread_conf);
+    thread_conf.ctrl_port = ctrl_port;
+    thread_conf.mcast_addr = mcast_addr;
+    thread_conf.data_port = data_port;
+    thread_conf.nazwa_stacji = nazwa_nadajnika;
+    thread_conf.ret_list = &retransmision_requests;
 
-    if(pthread_create(&listener, nullptr, listening_rexmit_lookup, (void *)&thread_conf)) {
+    if(pthread_create(&listener, nullptr, listening_rexmit_lookup, (void*)&thread_conf)) {//(void *)&thread_conf
         printf("Error:unable to create thread");
         exit(1);
     }

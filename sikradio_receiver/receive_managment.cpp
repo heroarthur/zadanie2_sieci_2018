@@ -46,6 +46,7 @@ void parse_identyfication(const recv_msg& identyfication, transmitter_addr& tran
     transmitter.data_port = l[third];
     transmitter.nazwa_stacji = join_container_elements<std::vector<string>, from_fourth>(l, " ");
     transmitter.direct_rexmit_con = identyfication.sender_addr;
+    transmitter.last_reported_sec = current_time_sec();
 }
 
 
@@ -95,44 +96,38 @@ void find_new_transmitter(string priority_transmiter_name, transmitter_addr& tr,
 }
 
 
-void restart_audio_player(current_transmitter_session& session, transmitters_set& availabile_transmiters, uint16_t new_rexmit_port) {
-    if(availabile_transmiters.empty()) return;
-    transmitter_addr new_tr = *availabile_transmiters.begin();
-    init_transmitter_session(session, new_tr, new_rexmit_port);
+void restart_audio_player(current_transmitter_session& session, availabile_transmitters& transmitters, uint16_t ctrl_port_u16) {
+    transmitters.clear_not_reported_transmitters();
+    if(transmitters.empty()) return;
+    transmitter_addr new_tr;
+    if(!transmitters.get_next_transmitter(new_tr)) return;
+    init_transmitter_session(session, new_tr, ctrl_port_u16);
     create_socket_binded_to_new_mcast_addr(session.mcast_sockfd, session.mcast_addr.c_str(), session.data_port.c_str());
-    session.SESSION_ESTABLISHED = true;
+    FD_ZERO(&session.mcast_fd_set);
+    FD_SET(session.mcast_sockfd, &session.mcast_fd_set);
 }
 
 
-
-void manage_receive_audio(int rexmit_sockfd, uint16_t rexmit_port, const uint32_t bsize, transmitters_set& availabile_transmiters, const uint32_t& rexmit_time) {
-    static bool init = true;
-    static current_transmitter_session session;
-    static limited_dict<uint64_t , packgs> d(bsize);
+/*
+void manage_receive_audio(int rexmit_sockfd, uint16_t rexmit_port, const uint32_t bsize, transmitters_set& availabile_transmiters, const uint32_t& rexmit_time, current_transmitter_session& session) {
     static ROUND_TIMER rexmit_timer(rexmit_time);
-    if(init) {
-        init = false;
-        session.packs_dict = &d;
-        session.bsize = bsize;
-        session.rexmit_port = rexmit_port;
-    }
 
     if(!session.SESSION_ESTABLISHED) {
         restart_audio_player(session, availabile_transmiters, rexmit_port);
     }
     if(!session.SESSION_ESTABLISHED) return;
-    receive_pending_packs(session);
-    update_rexmit(session);
+    //receive_pending_packs(session);
+    //update_rexmit(session);
     //pobierz ile sie da, ustawiajac session id i numer pierwszej paczki
-    if(rexmit_timer.new_round_start()) {//kolejny rexmit time
-        send_rexmit(rexmit_sockfd, session);
-    }
-    write_audio_to_stdin(session);
+    //if(rexmit_timer.new_round_start()) {//kolejny rexmit time
+    //    send_rexmit(rexmit_sockfd, session);
+    //}
+    //write_audio_to_stdin(session);
 }
 
+*/
 
-
-
+/*
 void receive_pending_packs(current_transmitter_session& session) {
     if(!session.SESSION_ESTABLISHED) return;
     static const uint32_t RECEIVE_LIMIT = 10;
@@ -147,6 +142,12 @@ void receive_pending_packs(current_transmitter_session& session) {
 
     struct sockaddr their_addr{};
     socklen_t addr_len;
+
+
+    static uint64_t BRAKUJACYCH_PAKIETOW = 0;
+    static uint64_t ODEBRANYCH_PAKIETOW = 0;
+    static uint64_t last_packg_num = 0;
+
 
     uint32_t received_in_frame = 0;
     while(!socket_clear && received_in_frame < RECEIVE_LIMIT) {
@@ -168,6 +169,17 @@ void receive_pending_packs(current_transmitter_session& session) {
         get_int64_bit_value_(buff, first_byte_num, sizeof(uint64_t));
         uint32_t recv_psize = numbytes - 2*sizeof(uint64_t);
         uint64_t packg_meta_number_len = 2*sizeof(uint64_t);
+
+
+        //DEBUG
+        if(first_byte_num - last_packg_num != PSIZE_DEF)
+            BRAKUJACYCH_PAKIETOW++;
+        last_packg_num = first_byte_num;
+        ODEBRANYCH_PAKIETOW++;
+
+
+
+
         if(!session.FIRST_PACKS_RECEIVED) update_session_first_pack(session_id, first_byte_num, recv_psize, session);
 
         if(session_id < session.session_id) continue;
@@ -180,7 +192,7 @@ void receive_pending_packs(current_transmitter_session& session) {
         if(session.next_packg_to_stdin <= first_byte_num)
             session.packs_dict->insert(first_byte_num, packgs{first_byte_num, recv_raw_bytes});
         session.biggest_received_pack = max<uint64_t>(session.biggest_received_pack, first_byte_num);
-        printf("received packed %d \n", (int)session.packs_dict->length()); //TODO
+        printf("received packed %d \n", first_byte_num - session.byte0); //TODO
 
         while(session.biggest_received_pack > session.last_coherent_waiting_packgs &&
               session.packs_dict->contain(session.last_coherent_waiting_packgs + session.psize)) {
@@ -210,9 +222,10 @@ void update_rexmit(current_transmitter_session& session) {
         session.missing_packages.insert(to_string(rexmit_num));
     }
 }
+*/
 
 //BYTE0 + ⌊BSIZE*3/4⌋
-
+/*
 void write_audio_to_stdin(current_transmitter_session& session) {
     static char write_buff[WRITE_BUFF_SIZE];
     static packgs p;
@@ -234,25 +247,27 @@ void write_audio_to_stdin(current_transmitter_session& session) {
         }
     }
 }
-
+*/
 
 
 void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port) {
-    session.rexmit_port = ctrl_port;
+    //session.rexmit_port = ctrl_port;
+
     session.SESSION_ESTABLISHED = true;
-    session.tr_addr = tr.direct_rexmit_con;
+    session.ctrl_port_u16 = ctrl_port;
+    //session.tr_addr = tr.direct_rexmit_con;
     session.FIRST_PACKS_RECEIVED = false;
-    session.biggest_received_pack = 0;
-    session.next_packg_to_stdin = 0;
+    ///session.biggest_received_pack = 0;
+    //session.next_packg_to_stdin = 0;
     session.byte0 = 0;
     session.session_id = 0;
     session.mcast_addr = tr.mcast_addr;
     session.data_port = tr.data_port;
-    session.audio_buff.clear();
+   // session.audio_buff.clear();
     session.packs_dict->clear();
-    session.missing_packages.clear();
-    session.last_coherent_waiting_packgs = 0;
-    session.next_packg_to_stdin = 0;
+   // session.missing_packages.clear();
+   // session.last_coherent_waiting_packgs = 0;
+   // session.next_packg_to_stdin = 0;
     session.current_transmitter = tr;
 }
 
@@ -270,12 +285,12 @@ uint64_t last_writed_to_stdin_packgs;
 void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session) {
     session.FIRST_PACKS_RECEIVED = true;
     session.byte0 = first_byte_num;
-    session.biggest_received_pack = first_byte_num;
+//    session.biggest_received_pack = first_byte_num;
     session.psize = recv_psize;
-    session.next_packg_to_stdin = first_byte_num;
-    session.last_coherent_waiting_packgs = first_byte_num;
+ //   session.next_packg_to_stdin = first_byte_num;
+  //  session.last_coherent_waiting_packgs = first_byte_num;
     session.session_id = recv_session_id;
-    session.packs_dict->set_max_size(session.bsize/recv_psize);
+   // session.packs_dict->set_max_size(session.bsize/recv_psize);
 }
 
 
