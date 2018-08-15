@@ -50,7 +50,7 @@ struct stdin_write_data {
     list< packgs_set_to_stdin >* stdin_packs;
     std::condition_variable* cv_stdin_packgs;
     pthread_mutex_t* stdin_list_mutex;
-
+    current_transmitter_session* session;
 };
 void* write_packages_to_stdin(void *threat_data);
 

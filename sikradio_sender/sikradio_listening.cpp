@@ -101,7 +101,7 @@ void *listening_rexmit_lookup(void *thread_data) {
              exit(1);
          }
          recv_msg = string(buff);
-         printf("%s \n", recv_msg.c_str());
+         //printf("%s \n", recv_msg.c_str());
          if(msgIsLookup(recv_msg)) {
              //    their_addr.sin_port = htons(CTRL_PORT_DEF); // short, network byte order
              sendto_msg(reply_identyfication_sockfd, requester_addr, reply_msg.c_str(), reply_msg.length(), ctrl_port_int);

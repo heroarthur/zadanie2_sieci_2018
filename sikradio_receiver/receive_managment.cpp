@@ -17,12 +17,14 @@
 #include <list>
 #include <fcntl.h>
 #include<ctime>
-
+#include <algorithm>    // std::min
 
 //#include "../common/datagram_packing.hpp"
 #include "../common/common.hpp"
 #include "receive_managment.hpp"
 
+
+using namespace std;
 
 
 void get_int64_bit_value_(const char* datagram, uint64_t& val, int beg) {
@@ -97,6 +99,7 @@ void find_new_transmitter(string priority_transmiter_name, transmitter_addr& tr,
 
 
 void restart_audio_player(current_transmitter_session& session, availabile_transmitters& transmitters, uint16_t ctrl_port_u16) {
+    pthread_mutex_lock(&session.mutex);
     transmitters.clear_not_reported_transmitters();
     if(transmitters.empty()) return;
     transmitter_addr new_tr;
@@ -105,6 +108,24 @@ void restart_audio_player(current_transmitter_session& session, availabile_trans
     create_socket_binded_to_new_mcast_addr(session.mcast_sockfd, session.mcast_addr.c_str(), session.data_port.c_str());
     FD_ZERO(&session.mcast_fd_set);
     FD_SET(session.mcast_sockfd, &session.mcast_fd_set);
+    pthread_mutex_unlock(&session.mutex);
+}
+
+
+
+
+
+void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs, current_transmitter_session& session) {
+    static list<string> missings;
+    const uint32_t max_rexmit_lenght = 1200;
+    missing_packs.ret_uniqe_list(missings);
+    missing_packs.clear();
+    if(missings.empty()) return;
+    string missing_packgage_msg = join_container_elements<list<string> >(missings, ",");
+    missing_packgage_msg = missing_packgage_msg.substr(0, min((uint32_t)missing_packgage_msg.length(), max_rexmit_lenght) );
+    string louder_please_msg = LOUDER_PLEASE + " " + missing_packgage_msg;
+    sendto_msg(rexmit_sockfd, session.current_transmitter.direct_rexmit_con, louder_please_msg.c_str(), louder_please_msg.length(), session.ctrl_port_u16);
+    missings.clear();
 }
 
 
@@ -252,7 +273,6 @@ void write_audio_to_stdin(current_transmitter_session& session) {
 
 void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port) {
     //session.rexmit_port = ctrl_port;
-
     session.SESSION_ESTABLISHED = true;
     session.ctrl_port_u16 = ctrl_port;
     //session.tr_addr = tr.direct_rexmit_con;
@@ -285,6 +305,8 @@ uint64_t last_writed_to_stdin_packgs;
 void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session) {
     session.FIRST_PACKS_RECEIVED = true;
     session.byte0 = first_byte_num;
+    session.last_pack_num = first_byte_num;
+    session.cur_pack_num = first_byte_num;
 //    session.biggest_received_pack = first_byte_num;
     session.psize = recv_psize;
  //   session.next_packg_to_stdin = first_byte_num;

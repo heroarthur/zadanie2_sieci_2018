@@ -103,12 +103,17 @@ bool Input_management::pack_available(pack_id id) {
 }
 
 void Input_management::read_input(byte_container& msg) {
-    static ROUND_TIMER t(1);
-    while(!t.new_round_start()) {}
-    string s(PSIZE_DEF, 'a');
-    //char arr[PSIZE_DEF]; = s.c_str();
+    char read_buff[RECVFROM_BUFF_SIZE];
 
-    msg.emplace_back(s.c_str(), 0, PSIZE_DEF);
+    ssize_t numbytes;
+    //string s(PSIZE_DEF, 'a');
+    //char arr[PSIZE_DEF]; = s.c_str();
+    numbytes = read(fileno(stdin), read_buff, RECVFROM_BUFF_SIZE);
+    //if(buff[numbytes-1] == '\0') {printf("koniec\n"); exit(2);}
+    //fwrite(read_buff, 1, numbytes, stdout);
+    //        printf("sadasdas\n");
+
+    msg.emplace_back(read_buff, 0, numbytes);
     //memset(msg.buff, 0, INPUT_READ_SIZE);
     //read(0, msg.buff, INPUT_READ_SIZE);
     //fgets(buff, 512, (FILE*)stdin_debug_fd);
@@ -176,11 +181,13 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
     struct sockaddr their_addr;
     socklen_t addr_len;
 
+    ssize_t  numbytes;
+
 
     while(!socket_clear) {
         m = recv_msg{};
         //memset(buff, 0, sizeof buff);
-        if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len) == -1) {
+        if ((numbytes = recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len)) == -1) {
         //if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &m.sender_addr.ai_addr, &m.sender_addr.ai_addrlen) == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 socket_clear = true;
@@ -193,7 +200,7 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
         }
 
 
-
+        buff[numbytes] = '\0';
         m.text = string(buff);
         m.sender_addr.ai_addr = their_addr;
         m.sender_addr.ai_addrlen = addr_len;

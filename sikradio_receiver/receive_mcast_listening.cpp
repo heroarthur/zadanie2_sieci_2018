@@ -108,7 +108,7 @@ void* receive_transmitters_identyfication(void *threat_data) {
         recv_identyfication.sender_addr.ai_addrlen = addr_len;
 
         if(!msgIsBorewicz(recv_identyfication.text)) continue;
-        printf("recv id: %s \n", recv_identyfication.text.c_str());
+        //printf("recv id: %s \n", recv_identyfication.text.c_str());
         transmitter_addr new_transmitter;
         parse_identyfication(recv_identyfication, new_transmitter);
         transmitters->update_transmitter(new_transmitter);
@@ -120,10 +120,11 @@ void* receive_transmitters_identyfication(void *threat_data) {
 
 
 void* write_packages_to_stdin(void *threat_data) {
-    stdin_write_data* config = (stdin_write_data*)&threat_data;
+    stdin_write_data* config = (stdin_write_data*)threat_data;
     list< packgs_set_to_stdin >* stdin_packs =  config->stdin_packs;
     std::condition_variable* cv_stdin_packgs = config->cv_stdin_packgs;
     pthread_mutex_t* stdin_list_mutex = config->stdin_list_mutex;
+    current_transmitter_session* session = config->session;
 
     char buff[100000];
 
@@ -150,17 +151,22 @@ void* write_packages_to_stdin(void *threat_data) {
 
         auto it = stdin_packgs.packgs.find(stdin_packgs.first_byte_num);
 
-        uint64_t last_key = stdin_packgs.first_byte_num;
+        uint64_t last_key = stdin_packgs.first_byte_num - stdin_packgs.psize;
         uint64_t cur_key;
         for(;it != stdin_packgs.packgs.end(); it++) {
             cur_key = it->first;
             if(cur_key - last_key != stdin_packgs.psize) {
+                pthread_mutex_lock(&session->mutex);
+                session->SESSION_ESTABLISHED = false;
+                pthread_mutex_lock(&session->mutex);
                 continue;
             }
+
             it->second.write_to_array(buff, 0, stdin_packgs.psize);
             if(fwrite(buff, 1, stdin_packgs.psize, stdout) != stdin_packgs.psize) {
-                perror("fwrite");
+                //perror("fwrite");
             }
+            last_key = cur_key;
         }
     }
 
@@ -222,7 +228,9 @@ void* listening_mcast_packgs(void *thread_data) {
 
         if(session_id < session->session_id) continue;
         if(session_id > session->session_id) {
+            pthread_mutex_lock(&session->mutex);
             session->SESSION_ESTABLISHED = false;
+            pthread_mutex_lock(&session->mutex);
             continue;
         }
 
@@ -230,6 +238,6 @@ void* listening_mcast_packgs(void *thread_data) {
         session->packs_dict->insert(first_byte_num, recv_raw_bytes);
         //session.biggest_received_pack = max<uint64_t>(session.biggest_received_pack, first_byte_num); TODO end()-1 simply should have biggest key
         //printf("received packed %d \n", first_byte_num - session.byte0); //TODO
-        printf("BRAKUJACE_PAKIETY %d \n", BRAKUJACYCH_PAKIETOW); //TODO
+        //printf("BRAKUJACE_PAKIETY %d \n", BRAKUJACYCH_PAKIETOW); //TODO
     }
 }

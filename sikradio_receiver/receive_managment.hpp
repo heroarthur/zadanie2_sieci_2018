@@ -93,6 +93,8 @@ struct current_transmitter_session {
     //std::atomic<bool> SESSION_ESTABLISHED(false);
     bool SESSION_ESTABLISHED;
     bool FIRST_PACKS_RECEIVED;
+    pthread_mutex_t	mutex;
+
 
     int mcast_sockfd;
     fd_set mcast_fd_set;
@@ -100,6 +102,9 @@ struct current_transmitter_session {
     string mcast_addr;
     string data_port;
     uint16_t ctrl_port_u16;
+
+    uint64_t last_pack_num;
+    uint64_t cur_pack_num;
 
     transmitter_addr current_transmitter;
     //limited_concurrent_map<uint64_t, byte_container>* packs_dict;
@@ -156,7 +161,9 @@ void restart_audio_player(current_transmitter_session& session, availabile_trans
 
 //void receive_pending_packs(current_transmitter_session& session);
 
-void send_rexmit(int rexmit_sockfd, current_transmitter_session& session);
+//void send_rexmit(int rexmit_sockfd, current_transmitter_session& session);
+void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs, current_transmitter_session& session);
+
 
 
 void update_rexmit(current_transmitter_session& session);

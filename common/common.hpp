@@ -210,8 +210,10 @@ string join_container_elements(T v, string delimiter) {
 template<typename T>
 string join_container_elements(T v, string delimiter) {
     string s = "";
-    for(auto it = v.begin(); it != v.end(); it++)
+    for(auto it = v.begin(); it != (v.end()--); it++)
         s += *it + delimiter;
+    if(!s.empty())
+        s.pop_back();
     return s;
 }
 
@@ -333,17 +335,17 @@ public:
             exit(1);
         }
     }
-    void insert(list<q_type>& l) { //std::list<q_type> insert(list<q_type>& l)
+    void insert(list<q_type>& insert_l) { //std::list<q_type> insert(list<q_type>& l)
         pthread_mutex_lock(&mutex);
-        l.splice(l.end(), l);
+        l.splice(l.end(), insert_l);
         pthread_mutex_unlock(&mutex);
     }
-    void ret_uniqe_list(list<q_type>& l) {//    void ret_uniqe_list(list<q_type>& l) {
-        l.clear();
+    void ret_uniqe_list(list<q_type>& ret_l) {//    void ret_uniqe_list(list<q_type>& l) {
+        ret_l.clear();
         pthread_mutex_lock(&mutex);
         l.unique();
         l.sort();
-        l.splice(l.end(), l);
+        ret_l.splice(ret_l.end(), l);
         pthread_mutex_unlock(&mutex);
     }
     void clear() {

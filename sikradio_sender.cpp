@@ -68,7 +68,7 @@ int main (int argc, char *argv[]) {
 
 
     //psize = 16;
-    Input_management input_queue(psize, fsize);
+    Input_management input_queue(psize, fsize*20);
 
     pthread_t listener;
     listening_thread_configuration thread_conf;//, &retransmision_requests};
