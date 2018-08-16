@@ -66,8 +66,7 @@ uint32_t parse_optarg_to_number(int option, const char *optarg) {
 void Input_management::load_packs_from_input() {
     byte_container readed_bytes = byte_container();
     static byte_container unfinished_pack = byte_container();
-    static uint32_t pack_start;
-    read_input(readed_bytes);//emplace back wszystkie wczytane bajty
+    read_input(readed_bytes);
     byte_container new_conteiner;
 
     while(readed_bytes.size() >= psize) {
@@ -106,17 +105,8 @@ void Input_management::read_input(byte_container& msg) {
     char read_buff[RECVFROM_BUFF_SIZE];
 
     ssize_t numbytes;
-    //string s(PSIZE_DEF, 'a');
-    //char arr[PSIZE_DEF]; = s.c_str();
     numbytes = read(fileno(stdin), read_buff, RECVFROM_BUFF_SIZE);
-    //if(buff[numbytes-1] == '\0') {printf("koniec\n"); exit(2);}
-    //fwrite(read_buff, 1, numbytes, stdout);
-    //        printf("sadasdas\n");
-
     msg.emplace_back(read_buff, 0, numbytes);
-    //memset(msg.buff, 0, INPUT_READ_SIZE);
-    //read(0, msg.buff, INPUT_READ_SIZE);
-    //fgets(buff, 512, (FILE*)stdin_debug_fd);
 }
 
 
@@ -145,8 +135,6 @@ uint64_t current_time_sec() {
 
 void fill_connection_struct(Connection_addres &connection, struct addrinfo *servinfo) {
     connection.ai_addr = *(servinfo->ai_addr);
-    //memcpy ( (void *) &connection.ai_addr, (const void *)(sockaddr_storage*)(servinfo->ai_addr), sizeof(sockaddr_storage));
-    //memcpy(&connection.ai_addr, &(servinfo->ai_addr), sizeof(sockaddr));
     connection.ai_addrlen = servinfo->ai_addrlen;
     connection.ai_family = servinfo->ai_family;
     connection.ai_socktype = servinfo->ai_socktype;
@@ -186,9 +174,7 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
 
     while(!socket_clear) {
         m = recv_msg{};
-        //memset(buff, 0, sizeof buff);
         if ((numbytes = recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len)) == -1) {
-        //if (recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &m.sender_addr.ai_addr, &m.sender_addr.ai_addrlen) == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 socket_clear = true;
                 continue;
@@ -204,7 +190,6 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
         m.text = string(buff);
         m.sender_addr.ai_addr = their_addr;
         m.sender_addr.ai_addrlen = addr_len;
-        //printf("%s \n", m.text.c_str());
         messages.emplace_back(m);
     }
 }
@@ -214,7 +199,6 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
 void get_int64_bit_value(const char* datagram, uint64_t& val, int beg) {
     uint8_t a[8];
     mempcpy(a, datagram + beg, sizeof(uint64_t));
-    //v = *((uint64_t*) a);
     for(int i = 0; i < sizeof(uint64_t); i++) {
         ((uint8_t*)&val)[i] = ((uint8_t*) a)[i];
     }

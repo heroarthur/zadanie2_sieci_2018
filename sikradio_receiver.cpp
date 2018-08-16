@@ -39,13 +39,13 @@
 
 #include "sikradio_receiver/receive_managment.hpp"
 #include "sikradio_receiver/receive_mcast_listening.hpp"
-
+#include <sys/signal.h>
 
 using namespace std;
 
 
 template <uint32_t timeout_sec>
-bool recv_before_timeout(current_transmitter_session &session, availabile_transmitters& transmitters) {
+bool recv_before_timeout(current_transmitter_session &session) {
     static struct timeval tv{0,0};
     tv.tv_sec = timeout_sec;
 
@@ -53,34 +53,19 @@ bool recv_before_timeout(current_transmitter_session &session, availabile_transm
 
     if (FD_ISSET(session.mcast_sockfd, &session.mcast_fd_set))
         return true;
-    transmitters.clear_not_reported_transmitters();
-    pthread_mutex_lock(&session.mutex);
+    session.reported_transmitters.clear_not_reported_transmitters();
     session.SESSION_ESTABLISHED = false;
-    pthread_mutex_lock(&session.mutex);
     return false;
 }
 
 bool transmitter_availabile(availabile_transmitters& tr) {return !tr.empty();}
 
 
-void add_missig_packgs_to_list2(uint32_t psize, concurrent_uniqe_list<string>& missing_packs, limited_dict<uint64_t, byte_container>& recv_packs) {
-    uint64_t previous_pack, highest_pack;
-    static list<string> missings;
-    if(!recv_packs.two_highest_keys(previous_pack, highest_pack))
-        return;
-    missings.clear();
-    //printf("diff %d \n", highest_pack - previous_pack - psize);
-    for(uint64_t m = previous_pack + psize; m < highest_pack; m += psize) {
-        missings.emplace_back(to_string(m));
-    }
-    missing_packs.insert(missings);
-}
 
 void add_missig_packgs_to_list(uint32_t psize, uint64_t last_pack_num, uint64_t cur_pack_num, concurrent_uniqe_list<string>& missing_packs) {
     uint64_t previous_pack, highest_pack;
     static list<string> missings;
     missings.clear();
-    //printf("diff %d \n", highest_pack - previous_pack - psize);
     for(uint64_t m = last_pack_num + psize; m < cur_pack_num; m += psize) {
         missings.emplace_back(to_string(m));
     }
@@ -110,6 +95,8 @@ void transfer_packgs_to_stdin_thread(current_transmitter_session& session,
 
 
 int main (int argc, char *argv[]) {
+    signal(SIGPIPE, SIG_IGN);
+
     string discover_addr;
     string ui_port;
     string ctrl_port;
@@ -120,7 +107,6 @@ int main (int argc, char *argv[]) {
 
     set_default_receiver_arguments(discover_addr, ui_port, ctrl_port, data_port, bsize, rtime);
 
-    //set_sikradio_receiver_arguments(argc, argv, discover_addr, ui_port, ctrl_port, bsize, rtime);
     transmitters_set finded_transmitters;
 
     uint16_t ctrl_port_num = parse_optarg_to_number(0, ctrl_port.c_str());
@@ -144,8 +130,7 @@ int main (int argc, char *argv[]) {
     int l = 1;
     setsockopt(recv_senders_id, SOL_SOCKET, SO_REUSEADDR, &l, sizeof(int));
     bind_socket(recv_senders_id, recv_senders_con);
-    //fcntl(recv_senders_id, F_SETFL, O_NONBLOCK);
-    availabile_transmitters transmitters;
+
 
 
     struct sockaddr their_addr;
@@ -159,7 +144,7 @@ int main (int argc, char *argv[]) {
     session.mutex = PTHREAD_MUTEX_INITIALIZER;
     if (pthread_mutex_init(&session.mutex, nullptr) != 0)
     {
-        printf("session mutex init failed\n");
+        printf("session mutex_protection init failed\n");
         exit(1);
     }
 
@@ -172,7 +157,7 @@ int main (int argc, char *argv[]) {
     std::unique_lock<std::mutex> lck(mtx);
 
     pthread_t recv_identyfication;
-    struct recv_transmitter_data thread_identyfication_conf{recv_senders_id, &cv, &transmitters};
+    struct recv_transmitter_data thread_identyfication_conf{recv_senders_id, &cv, &session.reported_transmitters};
     if (pthread_create(&recv_identyfication, nullptr, receive_transmitters_identyfication,
                        (void *) &thread_identyfication_conf)) {
         printf("Error:unable to create identyfication receive thread");
@@ -193,7 +178,7 @@ int main (int argc, char *argv[]) {
     std::condition_variable cv_stdin;
     stdin_list_mutex = PTHREAD_MUTEX_INITIALIZER;
     if (pthread_mutex_init(&stdin_list_mutex, nullptr) != 0) {
-        printf("stdin_list_mutex list mutex initialization failed\n");
+        printf("stdin_list_mutex list mutex_protection initialization failed\n");
         exit(1);
     }
 
@@ -209,32 +194,31 @@ int main (int argc, char *argv[]) {
     bool t = true;
 
 
+    ssize_t numbytes;
+    uint64_t session_id;
+    uint64_t first_byte_num;
+    static char buff[RECVFROM_BUFF_SIZE];
+    static uint64_t BRAKUJACYCH_PAKIETOW = 0;
+    static uint64_t ODEBRANYCH_PAKIETOW = 0;
+    static uint64_t last_packg_num = 0;
+
     byte_container recv_raw_bytes;
     while (t) {
-        if (transmitters.empty()) { cv.wait(lck); }
+        if (session.reported_transmitters.empty()) { cv.wait(lck); }
 
         if (!session.SESSION_ESTABLISHED) {
-            restart_audio_player(session, transmitters, ctrl_port_num);
+            restart_audio_player(session, ctrl_port_num);
             continue;
         }
-        if (!recv_before_timeout<20>(session, transmitters))// session.mcast_sockfd, session.mcast_fd_set);
-            continue;
+
 
         clear_not_reported_transmitters(finded_transmitters);
-        ssize_t numbytes;
-
-        uint64_t session_id;
-        uint64_t first_byte_num;
-        static char buff[RECVFROM_BUFF_SIZE];
 
 
-
-        //DEBUG
-        static uint64_t BRAKUJACYCH_PAKIETOW = 0;
-        static uint64_t ODEBRANYCH_PAKIETOW = 0;
-        static uint64_t last_packg_num = 0;
 
         if (!session.SESSION_ESTABLISHED) continue;
+        if (!recv_before_timeout<20>(session))
+            continue;
         if ((numbytes = recvfrom(session.mcast_sockfd, buff, RECVFROM_BUFF_SIZE - 1, 0, nullptr, nullptr)) == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 continue;
@@ -248,24 +232,15 @@ int main (int argc, char *argv[]) {
         session.cur_pack_num = first_byte_num;
         uint32_t recv_psize = numbytes - 2 * sizeof(uint64_t);
         uint64_t packg_meta_number_len = 2 * sizeof(uint64_t);
-        //printf("%d \n", first_byte_num);
 
-        //DEBUG
-
-
-        //printf("odebranych: %d | brakujacych: %d \n", ODEBRANYCH_PAKIETOW, BRAKUJACYCH_PAKIETOW);
-        //DEBUG
 
         if (!session.FIRST_PACKS_RECEIVED) update_session_first_pack(session_id, first_byte_num, recv_psize, session);
 
         if (session_id < session.session_id) continue;
         if (session_id > session.session_id) {
-            pthread_mutex_lock(&session.mutex);
             session.SESSION_ESTABLISHED = false;
-            pthread_mutex_lock(&session.mutex);
             continue;
         }
-        //session.packs_dict->
 
         recv_raw_bytes.create_new(buff, packg_meta_number_len, session.psize);
         session.packs_dict->insert(first_byte_num, recv_raw_bytes);
@@ -282,10 +257,8 @@ int main (int argc, char *argv[]) {
 
         if (first_byte_num - last_packg_num != PSIZE_DEF)
             BRAKUJACYCH_PAKIETOW += (first_byte_num - last_packg_num) / PSIZE_DEF;
-        //    BRAKUJACYCH_PAKIETOW++;
         last_packg_num = first_byte_num;
         ODEBRANYCH_PAKIETOW++;
-        ///printf("brakujace %d   %d\n", BRAKUJACYCH_PAKIETOW, ODEBRANYCH_PAKIETOW);
     }
 }
 

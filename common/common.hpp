@@ -50,7 +50,6 @@ const string ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN\0";
 const string LOUDER_PLEASE = "LOUDER_PLEASE";
 const string BOREWICZ_HERE = "BOREWICZ_HERE";
 
-//string* CHOOSE_MY_IP = nullptr;
 
 
 
@@ -127,22 +126,20 @@ typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
 class availabile_transmitters {
 private:
     transmitters_set transmitters;
-    pthread_mutex_t	mutex;
-    volatile bool t;
+    pthread_mutex_t	mutex_protection;
 
 public:
     availabile_transmitters () {
-        mutex = PTHREAD_MUTEX_INITIALIZER;
-        if (pthread_mutex_init(&mutex, nullptr) != 0)
+        mutex_protection = PTHREAD_MUTEX_INITIALIZER;
+        if (pthread_mutex_init(&mutex_protection, nullptr) != 0)
         {
-            printf("\n availabile_transmitters mutex initialization failed\n");
+            printf("\n availabile_transmitters mutex_protection initialization failed\n");
             exit(1);
         }
     }
 
     void update_transmitter(transmitter_addr& new_transmitter) {
-        pthread_mutex_lock(&mutex);
-        //new_transmitter.last_reported_sec = current_time_sec();
+        pthread_mutex_lock(&mutex_protection);
         auto tr = transmitters.find(new_transmitter); //transmitters_set::iterator
         if(tr != transmitters.end()) {
             (tr)-> last_reported_sec = current_time_sec();
@@ -150,31 +147,35 @@ public:
         else {
             transmitters.insert(new_transmitter);
         }
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&mutex_protection);
     }
 
     bool empty() {
-        t = transmitters.empty();
-        return t;
+        pthread_mutex_lock(&mutex_protection);
+        bool empty = transmitters.empty();
+        pthread_mutex_unlock(&mutex_protection);
+        return empty;
     }
 
     bool get_next_transmitter(transmitter_addr& ret_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
         if(!transmitters.empty()) {
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_lock(&mutex_protection);
             ret_transmitter = *transmitters.begin();
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex_protection);
             return true;
         }
         return false;
     }
 
     void clear_not_reported_transmitters() {
+        pthread_mutex_lock(&mutex_protection);
         time_t current_time = time(nullptr);
         for (const transmitter_addr& tr : transmitters) {
             if(last_report_older_than<20>(tr.last_reported_sec)) {
                 transmitters.erase(tr);
             }
         }
+        pthread_mutex_unlock(&mutex_protection);
     }
 };
 
@@ -219,16 +220,7 @@ string join_container_elements(T v, string delimiter) {
 
 
 
-
-struct Recvfrom_msg {
-    ssize_t msg_len;
-    char* buff;
-};
-
-
 uint32_t parse_optarg_to_number(int option, const char *optarg);//zmien nazwe
-
-
 
 
 
@@ -281,7 +273,7 @@ public:
         mutex = PTHREAD_MUTEX_INITIALIZER;
         if (pthread_mutex_init(&mutex, nullptr) != 0)
         {
-            printf("\n limited_concurrent_dict mutex initialization failed\n");
+            printf("\n limited_concurrent_dict mutex_protection initialization failed\n");
             exit(1);
         }
     }
@@ -318,20 +310,16 @@ public:
 template <typename q_type>
 class concurrent_uniqe_list {
 public:
-    //uint32_t max_size;
-    uint32_t psize;
     std::list<q_type> l;
-    //std::list<q_type> waiting_tail;
     pthread_mutex_t	mutex;
 
 
 public:
     concurrent_uniqe_list() {
-        //pthread_mutex_lock(&mutex);
         mutex = PTHREAD_MUTEX_INITIALIZER;
         if (pthread_mutex_init(&mutex, nullptr) != 0)
         {
-            printf("\n mutex init failed\n");
+            printf("\n mutex_protection init failed\n");
             exit(1);
         }
     }
@@ -408,7 +396,6 @@ public:
 
 struct packgs {
     uint64_t first_byte_num;
-    //string bytes;
     byte_container bytes;
 };
 

@@ -17,8 +17,12 @@
 #include <list>
 #include <fcntl.h>
 #include<ctime>
+#include<signal.h>
+#include<csignal>
 
 #include <pthread.h>
+#include <atomic>
+#include <sys/signal.h>
 
 #include "common/common.hpp"
 //#include "common/datagram_packing.hpp"
@@ -38,9 +42,11 @@ const ssize_t listener_buff_size = 1000;
 
 
 
-
+std::atomic<bool> rasas;
 
 int main (int argc, char *argv[]) {
+    signal(SIGPIPE, SIG_IGN);
+
     std::string mcast_addr = "224.0.0.3";
     std::string nazwa_nadajnika;
     std::string data_port;

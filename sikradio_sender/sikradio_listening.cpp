@@ -28,8 +28,6 @@ using namespace std;
 
 
 const ssize_t listener_buff_size = 1000;
-//ctrl_port nasluchuje na rexmit i ZERO_SEVEN_COME_IN
-//data_port na tym porcie receiver ma nasluchiwac na pakiety audio
 
 
 
@@ -91,19 +89,14 @@ void *listening_rexmit_lookup(void *thread_data) {
      string recv_msg;
 
      while(true) {
-         //select
-
-
-
          if (recvfrom(rexmit_lookup_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0,
                       &requester_addr.ai_addr, &requester_addr.ai_addrlen) == -1) {
              perror("recvfrom");
              exit(1);
          }
          recv_msg = string(buff);
-         //printf("%s \n", recv_msg.c_str());
          if(msgIsLookup(recv_msg)) {
-             //    their_addr.sin_port = htons(CTRL_PORT_DEF); // short, network byte order
+             //their_addr.sin_port = htons(CTRL_PORT_DEF); // short, network byte order
              sendto_msg(reply_identyfication_sockfd, requester_addr, reply_msg.c_str(), reply_msg.length(), ctrl_port_int);
          }
          if(msgIsRexmit(recv_msg)) {//odpal tu function template zeby dalo sie i liste i vector
