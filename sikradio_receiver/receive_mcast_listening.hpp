@@ -35,6 +35,8 @@ struct recv_transmitter_data {
     int recv_sockfd;
     std::condition_variable* cv;
     availabile_transmitters* transmitters;
+    Connection_addres* broadcast_con;
+    string broadcast_message;
 };
 void* receive_transmitters_identyfication(void *threat_data);
 

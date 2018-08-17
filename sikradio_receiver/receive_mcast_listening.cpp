@@ -79,31 +79,54 @@ void* receive_transmitters_identyfication(void *threat_data) {
     int recv_sockfd = config->recv_sockfd;
     auto cv = config->cv;
     availabile_transmitters* transmitters = config->transmitters;
+    Connection_addres* broadcast_con = config->broadcast_con;
+    string broadcast_message = config->broadcast_message;
+
+    static struct timeval tv{0,0};
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    fd_set master;
+    fd_set readfds;
+    FD_ZERO(&master);
+    FD_SET(recv_sockfd, &master);
+
+    // don't care about writefds and exceptfds:
 
     struct sockaddr their_addr;
     socklen_t addr_len;
     recv_msg recv_identyfication;
     bool continue_recv_identyfication = true;
     while(continue_recv_identyfication) {
-        if (recvfrom(recv_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len) == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                continue;
-            }
-            else {
-                perror("recvfrom");
-                continue;
-            }
+        readfds = master; // copy it
+        if (select(recv_sockfd+1, &readfds, NULL, NULL, &tv) == -1) {//&tv
+            perror("select");
+            exit(4);
         }
-        recv_identyfication.text = string(buff);
-        recv_identyfication.sender_addr.ai_addr = their_addr;
-        recv_identyfication.sender_addr.ai_addrlen = addr_len;
+        if (FD_ISSET(recv_sockfd, &readfds)) {
+            if (recvfrom(recv_sockfd, buff, RECVFROM_BUFF_SIZE - 1, 0, &their_addr, &addr_len) == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    continue;
+                } else {
+                    perror("recvfrom");
+                    continue;
+                }
+            }
+            recv_identyfication.text = string(buff);
+            recv_identyfication.sender_addr.ai_addr = their_addr;
+            recv_identyfication.sender_addr.ai_addrlen = addr_len;
 
-        if(!msgIsBorewicz(recv_identyfication.text)) continue;
-        //printf("recv id: %s \n", recv_identyfication.text.c_str());
-        transmitter_addr new_transmitter;
-        parse_identyfication(recv_identyfication, new_transmitter);
-        transmitters->update_transmitter(new_transmitter);
-        cv->notify_all();
+            if (!msgIsBorewicz(recv_identyfication.text)) continue;
+            //printf("recv id: %s \n", recv_identyfication.text.c_str());
+            transmitter_addr new_transmitter;
+            parse_identyfication(recv_identyfication, new_transmitter);
+            transmitters->update_transmitter(new_transmitter);
+            cv->notify_all();
+        } else {
+            tv.tv_sec = 5;
+            sendto_msg(recv_sockfd, *broadcast_con, broadcast_message.c_str(),
+                       broadcast_message.length());
+        }
     }
 }
 

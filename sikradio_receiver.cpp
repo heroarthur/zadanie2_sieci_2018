@@ -113,11 +113,8 @@ int main (int argc, char *argv[]) {
 
 
     int broadcast_sockfd;
-    Connection_addres broadcast_location{};
-    get_communication_addr(broadcast_location, discover_addr.c_str(), ctrl_port.c_str());
     broadcast_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    int broadcast = 1;
-    setsockopt(broadcast_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof broadcast);
+
 
 
     int send_rexmit_sockfd;
@@ -126,10 +123,15 @@ int main (int argc, char *argv[]) {
     int recv_senders_id;
     recv_senders_id = socket(AF_INET, SOCK_DGRAM, 0);
     Connection_addres recv_senders_con{};
-    get_communication_addr(recv_senders_con, USE_MY_IP, ctrl_port.c_str());
+    get_communication_addr(recv_senders_con, USE_MY_IP, "30000");
     int l = 1;
     setsockopt(recv_senders_id, SOL_SOCKET, SO_REUSEADDR, &l, sizeof(int));
     bind_socket(recv_senders_id, recv_senders_con);
+
+    Connection_addres broadcast_location{};
+    get_communication_addr(broadcast_location, discover_addr.c_str(), ctrl_port.c_str());
+    int broadcast = 1;
+    setsockopt(recv_senders_id, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof broadcast);
 
 
 
@@ -157,14 +159,14 @@ int main (int argc, char *argv[]) {
     std::unique_lock<std::mutex> lck(mtx);
 
     pthread_t recv_identyfication;
-    struct recv_transmitter_data thread_identyfication_conf{recv_senders_id, &cv, &session.reported_transmitters};
+    struct recv_transmitter_data thread_identyfication_conf{recv_senders_id, &cv, &session.reported_transmitters, &broadcast_location, ZERO_SEVEN_COME_IN};
     if (pthread_create(&recv_identyfication, nullptr, receive_transmitters_identyfication,
                        (void *) &thread_identyfication_conf)) {
         printf("Error:unable to create identyfication receive thread");
         exit(1);
     }
 
-
+/*
     pthread_t thread_broadcaster;
     struct send_broadcast_data thread_broadcast_conf{broadcast_sockfd, ZERO_SEVEN_COME_IN, broadcast_location};
     if (pthread_create(&thread_broadcaster, nullptr, send_broadcast, (void *) &thread_broadcast_conf)) {
@@ -172,7 +174,7 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
 
-
+*/
     list<packgs_set_to_stdin> stdin_packs;
     pthread_mutex_t stdin_list_mutex;
     std::condition_variable cv_stdin;

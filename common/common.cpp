@@ -244,7 +244,7 @@ void sendto_msg(int& sockfd ,const Connection_addres& connection, const char* ms
 
 void sendto_msg(int& sockfd ,Connection_addres connection, const char* msg, const uint64_t msg_len, uint16_t destination_port) {
     ssize_t numbytes;
-    ((sockaddr_in*)&connection)->sin_port = destination_port;
+    //((sockaddr_in*)&connection)->sin_port = destination_port;
     if ((numbytes = sendto(sockfd, msg, msg_len, 0,
                            &(connection.ai_addr),
                            connection.ai_addrlen)) == -1) {
