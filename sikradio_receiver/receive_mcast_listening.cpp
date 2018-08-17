@@ -50,7 +50,7 @@ void* send_broadcast(void *threat_data) {
     availabile_transmitters* transmitters = config->transmitters;
 
 
-    Connection_addres recfrom_con;
+    /*Connection_addres recfrom_con;
     for(int i = 10000; i < 65000; i++) {
         string port_recfrom = to_string(i);
         get_communication_addr(recfrom_con, USE_MY_IP, port_recfrom.c_str());
@@ -60,7 +60,7 @@ void* send_broadcast(void *threat_data) {
         {
             break;
         }
-    }
+    }*/
 
 
     fd_set master;    // master file descriptor list
@@ -85,7 +85,7 @@ void* send_broadcast(void *threat_data) {
             exit(4);
         }
         tv.tv_sec = 5;
-        if (FD_ISSET(broadcast_sockfd, &master)) {
+        if (true || FD_ISSET(broadcast_sockfd, &master)) {
             //receive identyfication
             if (recvfrom(broadcast_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len) == -1) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -99,7 +99,7 @@ void* send_broadcast(void *threat_data) {
             recv_identyfication.text = string(buff);
             recv_identyfication.sender_addr.ai_addr = their_addr;
             recv_identyfication.sender_addr.ai_addrlen = addr_len;
-
+            printf("msg: %s \n", recv_identyfication.text);
             if(!msgIsBorewicz(recv_identyfication.text)) continue;
             printf("borewicz \n");
             //printf("recv id: %s \n", recv_identyfication.text.c_str());
