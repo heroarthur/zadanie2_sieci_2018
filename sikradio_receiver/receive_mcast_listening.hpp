@@ -22,10 +22,12 @@ void* listening_mcast_packgs(void *threat_data);
 
 
 
-struct send_broadcast_data {
+struct send_broadcast_recfrom {
     int broadcast_sockfd;
     string broadcast_message;
     Connection_addres broadcast_location;
+    std::condition_variable* cv;
+    availabile_transmitters* transmitters;
 };
 void* send_broadcast(void *threat_data);
 

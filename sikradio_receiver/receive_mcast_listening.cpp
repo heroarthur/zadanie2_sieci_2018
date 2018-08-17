@@ -36,12 +36,32 @@ using namespace std;
 
 
 void* send_broadcast(void *threat_data) {
+    static char buff[RECVFROM_BUFF_SIZE];
+
     usleep(1000); //wait for recv_identyfication thread to set up
-    send_broadcast_data* config = (send_broadcast_data*)threat_data;
+    send_broadcast_recfrom* config = (send_broadcast_recfrom*)threat_data;
 
     int broadcast_sockfd = config->broadcast_sockfd;
     string broadcast_message = config->broadcast_message;
     Connection_addres broadcast_connetion = config->broadcast_location;
+    //get_communication_addr(broadcast_connetion)
+
+    auto cv = config->cv;
+    availabile_transmitters* transmitters = config->transmitters;
+
+
+    Connection_addres recfrom_con;
+    for(int i = 10000; i < 65000; i++) {
+        string port_recfrom = to_string(i);
+        get_communication_addr(recfrom_con, USE_MY_IP, port_recfrom.c_str());
+
+        auto t = (sockaddr_in*)&recfrom_con.ai_addr;
+        if(bind(broadcast_sockfd, &recfrom_con.ai_addr, sizeof(recfrom_con.ai_addrlen)) != -1)
+        {
+            break;
+        }
+    }
+
 
     fd_set master;    // master file descriptor list
     int fdmax;        // maximum file descriptor number
@@ -50,8 +70,12 @@ void* send_broadcast(void *threat_data) {
     FD_SET(broadcast_sockfd, &master);
     fdmax = broadcast_sockfd; // so far, it's this one
     static struct timeval tv{0,0};
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
+    tv.tv_sec = 1;
+    tv.tv_usec = 300000;
+
+    struct sockaddr their_addr;
+    socklen_t addr_len;
+    recv_msg recv_identyfication;
 
     bool continue_requests = true;
     // main loop
@@ -60,8 +84,30 @@ void* send_broadcast(void *threat_data) {
             perror("select");
             exit(4);
         }
+        tv.tv_sec = 5;
         if (FD_ISSET(broadcast_sockfd, &master)) {
             //receive identyfication
+            if (recvfrom(broadcast_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &their_addr, &addr_len) == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    continue;
+                }
+                else {
+                    perror("recvfrom");
+                    continue;
+                }
+            }
+            recv_identyfication.text = string(buff);
+            recv_identyfication.sender_addr.ai_addr = their_addr;
+            recv_identyfication.sender_addr.ai_addrlen = addr_len;
+
+            if(!msgIsBorewicz(recv_identyfication.text)) continue;
+            printf("borewicz \n");
+            //printf("recv id: %s \n", recv_identyfication.text.c_str());
+            transmitter_addr new_transmitter;
+            parse_identyfication(recv_identyfication, new_transmitter);
+            transmitters->update_transmitter(new_transmitter);
+            cv->notify_all();
+
         } else {
             sendto_msg(broadcast_sockfd, broadcast_connetion, broadcast_message.c_str(),
                        broadcast_message.length());

@@ -113,8 +113,8 @@ int main (int argc, char *argv[]) {
 
 
     int broadcast_sockfd;
-    Connection_addres broadcast_location{};
-    get_communication_addr(broadcast_location, discover_addr.c_str(), ctrl_port.c_str());
+    Connection_addres broadcast_recv_location{};
+    get_communication_addr(broadcast_recv_location, discover_addr.c_str(), ctrl_port.c_str());
     broadcast_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     int broadcast = 1;
     setsockopt(broadcast_sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof broadcast);
@@ -123,13 +123,6 @@ int main (int argc, char *argv[]) {
     int send_rexmit_sockfd;
     send_rexmit_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    int recv_senders_id;
-    recv_senders_id = socket(AF_INET, SOCK_DGRAM, 0);
-    Connection_addres recv_senders_con{};
-    get_communication_addr(recv_senders_con, USE_MY_IP, ctrl_port.c_str());
-    int l = 1;
-    setsockopt(recv_senders_id, SOL_SOCKET, SO_REUSEADDR, &l, sizeof(int));
-    bind_socket(recv_senders_id, recv_senders_con);
 
 
 
@@ -156,18 +149,11 @@ int main (int argc, char *argv[]) {
     std::condition_variable cv;
     std::unique_lock<std::mutex> lck(mtx);
 
-    pthread_t recv_identyfication;
-    struct recv_transmitter_data thread_identyfication_conf{recv_senders_id, &cv, &session.reported_transmitters};
-    if (pthread_create(&recv_identyfication, nullptr, receive_transmitters_identyfication,
-                       (void *) &thread_identyfication_conf)) {
-        printf("Error:unable to create identyfication receive thread");
-        exit(1);
-    }
 
 
-    pthread_t thread_broadcaster;
-    struct send_broadcast_data thread_broadcast_conf{broadcast_sockfd, ZERO_SEVEN_COME_IN, broadcast_location};
-    if (pthread_create(&thread_broadcaster, nullptr, send_broadcast, (void *) &thread_broadcast_conf)) {
+    pthread_t thread_broadcaster_recfrom;
+    struct send_broadcast_recfrom thread_broadcast_conf{broadcast_sockfd, ZERO_SEVEN_COME_IN, broadcast_recv_location, &cv, &session.reported_transmitters};
+    if (pthread_create(&thread_broadcaster_recfrom, nullptr, send_broadcast, (void *) &thread_broadcast_conf)) {
         printf("Error:unable to create broadcast thread");
         exit(1);
     }

@@ -42,8 +42,10 @@ const ssize_t listener_buff_size = 1000;
 
 
 
-std::atomic<bool> rasas;
 
+
+
+/*
 int main (int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
@@ -102,3 +104,4 @@ int main (int argc, char *argv[]) {
     }
 }
 
+*/
