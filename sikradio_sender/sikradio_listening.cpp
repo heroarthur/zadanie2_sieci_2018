@@ -39,22 +39,6 @@ string reply_communicat(string header, string mcast_addr, string data_port,
 }
 
 
-list<string> rexmit_to_list(string rexmit) {
-    string parse_text = rexmit.substr(LOUDER_PLEASE.length()+1);
-    string delim = ",";
-    uint64_t start = 0U;
-    uint64_t end = rexmit.find(delim);
-    std::list<string> l;
-    while (end != string::npos)
-    {
-        l.emplace_back(parse_text.substr(start, end - start));
-        start = end + delim.length();
-        end = parse_text.find(delim, start);
-    }
-    return l;
-}
-
-
 
 
 
@@ -81,15 +65,16 @@ void *listening_rexmit_lookup(void *thread_data) {
      setsockopt(recv_send_sockfd, SOL_SOCKET, SO_REUSEADDR, &l, sizeof(int));
 
      int reply_identyfication_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-     Connection_addres requester_addr;
+     Connection_addres requester_addr{};
+     requester_addr.ai_addrlen = sizeof(sockaddr);
 
      char buff[RECVFROM_BUFF_SIZE];
      string recv_msg;
 
      while(true) {
-         if (recvfrom(recv_send_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0,
-                      &requester_addr.ai_addr,
-                      &requester_addr.ai_addrlen) == -1) {
+
+
+         if (recvfrom(recv_send_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, &requester_addr.ai_addr, &requester_addr.ai_addrlen) == -1) {
              perror("recvfrom");
              exit(1);
          }
@@ -99,7 +84,7 @@ void *listening_rexmit_lookup(void *thread_data) {
                         reply_msg.c_str(), reply_msg.length()+1);
          }
          if(msgIsRexmit(recv_msg)) {
-             std::list<string> l = split_string_to_container<std::list<string>>
+             auto l = split_string_to_container<std::list<string>>
                      (recv_msg.substr(LOUDER_PLEASE.length() + 1), ",");
              (*rexmit_requests_list).insert(l);
          }

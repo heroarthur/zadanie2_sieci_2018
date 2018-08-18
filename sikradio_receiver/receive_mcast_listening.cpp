@@ -66,7 +66,7 @@ void* receive_transmitters_identyfication(void *threat_data) {
         readfds = master; // copy it
         if (select(recv_sockfd+1, &readfds, NULL, NULL, &tv) == -1) {
             perror("select");
-            exit(4);
+            exit(1);
         }
         ssize_t numbytes;
         if (FD_ISSET(recv_sockfd, &readfds)) {

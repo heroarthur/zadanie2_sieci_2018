@@ -194,8 +194,6 @@ void* support_ui_connection(void* thread_data)
 
     int nbytes;
 
-    char remoteIP[INET6_ADDRSTRLEN];
-
     int yes=1;        // for setsockopt() SO_REUSEADDR, below
     int i, j, rv;
 
@@ -234,7 +232,7 @@ void* support_ui_connection(void* thread_data)
     // if we got here, it means we didn't get bound
     if (p == NULL) {
         fprintf(stderr, "selectserver: failed to bind\n");
-        exit(2);
+        exit(1);
     }
 
     freeaddrinfo(ai); // all done with this
@@ -242,7 +240,7 @@ void* support_ui_connection(void* thread_data)
     // listen
     if (listen(listener, 10) == -1) {
         perror("listen");
-        exit(3);
+        exit(1);
     }
 
     // add the listener to the master set
@@ -260,7 +258,7 @@ void* support_ui_connection(void* thread_data)
         read_fds = master; // copy it
         if (select(fdmax+1, &read_fds, nullptr, nullptr, &tv) == -1) {//&tv
             perror("select");
-            exit(4);
+            exit(1);
         }
         tv.tv_usec = 300000;
 

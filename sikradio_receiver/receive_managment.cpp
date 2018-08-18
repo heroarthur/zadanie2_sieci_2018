@@ -104,7 +104,6 @@ void send_rexmit(int rexmit_sockfd,
 void init_transmitter_session(current_transmitter_session& session,
                               const transmitter_addr& tr, uint16_t ctrl_port) {
     session.SESSION_ESTABLISHED = true;
-    session.ctrl_port_u16 = ctrl_port;
     session.FIRST_PACKS_RECEIVED = false;
     session.byte0 = 0;
     session.session_id = 0;
