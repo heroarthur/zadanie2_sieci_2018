@@ -42,14 +42,20 @@ void write_sikradio_sender_arguments(string mcast_addr, string nazwa_nadajnika,
                                      string data_port, uint32_t ctrl_port,
                                      uint32_t psize, uint32_t fsize, uint32_t rtime);
 
+
+
+
+void assign_sikradio_sender_default_arguments(string& nazwa_nadajnika,
+                                              string& data_port, string& ctrl_port,
+                                              uint32_t& psize, uint32_t& fsize, uint32_t& rtime);
+
+
 void set_sikradio_sender_arguments(const int& argc, char **argv,
                                    string& mcast_addr, string& nazwa_nadajnika,
                                    string& data_port, string& ctrl_port,
                                    uint32_t& psize, uint32_t& fsize, uint32_t& rtime);
 
-void assign_sikradio_sender_default_arguments(string& nazwa_nadajnika,
-                                              string& data_port, string& ctrl_port,
-                                              uint32_t& psize, uint32_t& fsize, uint32_t& rtime);
+
 
 
 

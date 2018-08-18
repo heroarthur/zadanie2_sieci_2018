@@ -35,43 +35,6 @@ using namespace std;
 
 
 
-void* send_broadcast(void *threat_data) {
-    usleep(1000); //wait for recv_identyfication thread to set up
-    send_broadcast_data* config = (send_broadcast_data*)threat_data;
-
-    int broadcast_sockfd = config->broadcast_sockfd;
-    string broadcast_message = config->broadcast_message;
-    Connection_addres broadcast_connetion = config->broadcast_location;
-
-    fd_set master;    // master file descriptor list
-    int fdmax;        // maximum file descriptor number
-
-    FD_ZERO(&master);    // clear the master and temp sets
-    FD_SET(broadcast_sockfd, &master);
-    fdmax = broadcast_sockfd; // so far, it's this one
-    static struct timeval tv{0,0};
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-
-    bool continue_requests = true;
-    // main loop
-    for (;;) {
-        if (select(fdmax + 1, &master, nullptr, nullptr, &tv) == -1) {//&tv
-            perror("select");
-            exit(4);
-        }
-        if (FD_ISSET(broadcast_sockfd, &master)) {
-            //receive identyfication
-        } else {
-            sendto_msg(broadcast_sockfd, broadcast_connetion, broadcast_message.c_str(),
-                       broadcast_message.length());
-        }
-    }
-}
-
-
-
-
 void* receive_transmitters_identyfication(void *threat_data) {
     static char buff[RECVFROM_BUFF_SIZE];
 
@@ -91,20 +54,24 @@ void* receive_transmitters_identyfication(void *threat_data) {
     FD_ZERO(&master);
     FD_SET(recv_sockfd, &master);
 
-    // don't care about writefds and exceptfds:
 
     struct sockaddr their_addr;
-    socklen_t addr_len;
+    socklen_t addr_len = sizeof their_addr;
+
+
+
     recv_msg recv_identyfication;
     bool continue_recv_identyfication = true;
     while(continue_recv_identyfication) {
         readfds = master; // copy it
-        if (select(recv_sockfd+1, &readfds, NULL, NULL, &tv) == -1) {//&tv
+        if (select(recv_sockfd+1, &readfds, NULL, NULL, &tv) == -1) {
             perror("select");
             exit(4);
         }
+        ssize_t numbytes;
         if (FD_ISSET(recv_sockfd, &readfds)) {
-            if (recvfrom(recv_sockfd, buff, RECVFROM_BUFF_SIZE - 1, 0, &their_addr, &addr_len) == -1) {
+            if ((numbytes = recvfrom(recv_sockfd, buff, RECVFROM_BUFF_SIZE - 1,
+                    0, &their_addr, &addr_len)) == -1) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     continue;
                 } else {
@@ -117,17 +84,17 @@ void* receive_transmitters_identyfication(void *threat_data) {
             recv_identyfication.sender_addr.ai_addrlen = addr_len;
 
             if (!msgIsBorewicz(recv_identyfication.text)) continue;
-            //printf("recv id: %s \n", recv_identyfication.text.c_str());
             transmitter_addr new_transmitter;
             parse_identyfication(recv_identyfication, new_transmitter);
             transmitters->update_transmitter(new_transmitter);
             cv->notify_all();
         } else {
             tv.tv_sec = 5;
-            sendto_msg(recv_sockfd, *broadcast_con, broadcast_message.c_str(),
-                       broadcast_message.length());
+            sendto_msg(recv_sockfd, *broadcast_con, ZERO_SEVEN_COME_IN.c_str(),
+                       ZERO_SEVEN_COME_IN.length()+1);
         }
     }
+    pthread_exit(nullptr);
 }
 
 
@@ -175,76 +142,10 @@ void* write_packages_to_stdin(void *threat_data) {
             }
 
             it->second.write_to_array(buff, 0, stdin_packgs.psize);
-            if(fwrite(buff, 1, stdin_packgs.psize, stdout) != stdin_packgs.psize) {
-                //perror("fwrite");
-            }
+            fwrite(buff, 1, stdin_packgs.psize, stdout);
             last_key = cur_key;
         }
     }
-
+    pthread_exit(nullptr);
 }
 
-
-
-void* listening_mcast_packgs(void *thread_data) {
-    mcast_listening_thread_configuration* config = (mcast_listening_thread_configuration*)thread_data;
-    current_transmitter_session* session = (config->session);
-
-    pthread_mutex_t	new_session_wait;
-    new_session_wait = PTHREAD_MUTEX_INITIALIZER;
-    if (pthread_mutex_init(&new_session_wait, nullptr) != 0)
-        {
-            printf("\n limited_concurrent_dict mutex_protection initialization failed\n");
-            exit(1);
-        }
-
-    ssize_t numbytes;
-
-    uint64_t session_id;
-    uint64_t first_byte_num;
-    byte_container recv_raw_bytes{};
-    static char buff[RECVFROM_BUFF_SIZE];
-
-
-
-    //DEBUG
-    static uint64_t BRAKUJACYCH_PAKIETOW = 0;
-    static uint64_t ODEBRANYCH_PAKIETOW = 0;
-    static uint64_t last_packg_num = 0;
-
-
-    int loop = true;
-    while(loop) {
-        if ((numbytes = recvfrom(session->mcast_sockfd, buff, RECVFROM_BUFF_SIZE-1 , 0, nullptr, nullptr)) == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                continue;
-            }
-            else {
-                perror("recvfrom");
-                continue;
-            }
-        }
-        get_int64_bit_value(buff, session_id, 0);
-        get_int64_bit_value(buff, first_byte_num, sizeof(uint64_t));
-        uint32_t recv_psize = numbytes - 2*sizeof(uint64_t);
-        uint64_t packg_meta_number_len = 2*sizeof(uint64_t);
-
-        //DEBUG
-        if(first_byte_num - last_packg_num != PSIZE_DEF)
-            BRAKUJACYCH_PAKIETOW++;
-        last_packg_num = first_byte_num;
-        ODEBRANYCH_PAKIETOW++;
-        //DEBUG
-
-        if(!session->FIRST_PACKS_RECEIVED) update_session_first_pack(session_id, first_byte_num, recv_psize, *session);
-
-        if(session_id < session->session_id) continue;
-        if(session_id > session->session_id) {
-            session->SESSION_ESTABLISHED = false;
-            continue;
-        }
-
-        recv_raw_bytes.create_new(buff, packg_meta_number_len, session->psize);
-        session->packs_dict->insert(first_byte_num, recv_raw_bytes);
-    }
-}

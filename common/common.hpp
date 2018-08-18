@@ -27,6 +27,7 @@
 
 
 #include <sys/time.h>
+#include <atomic>
 
 using namespace std;
 
@@ -46,9 +47,15 @@ const string NAZWA_DEF = "Nienazwany Nadajnik\0";
 
 
 
-const string ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN\0";
+const string ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN";
 const string LOUDER_PLEASE = "LOUDER_PLEASE";
 const string BOREWICZ_HERE = "BOREWICZ_HERE";
+
+
+
+
+//const char* ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN";
+//uint32_t zero_seven_len = 8;//strlen(ZERO_SEVEN_COME_IN) + 1;
 
 
 
@@ -66,6 +73,7 @@ const uint32_t fourth = 3, from_fourth = 3;
 
 const uint32_t RECVFROM_BUFF_SIZE = 10000;
 const uint32_t WRITE_BUFF_SIZE = 10000;
+const uint32_t BOREWICZ_MSG = 10000;
 
 
 //new connection design
@@ -118,19 +126,24 @@ bool last_report_older_than(uint64_t last_report_sec) {
 }
 
 
+bool validate_port(string& port);
+
 
 
 
 typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
 
 class availabile_transmitters {
-private:
+public:
     transmitters_set transmitters;
-    pthread_mutex_t	mutex_protection;
+    pthread_mutex_t	mutex_protection = PTHREAD_MUTEX_INITIALIZER;
+    uint32_t choosen_transmitter = 0;
+    std::atomic<bool> TRANSMITTER_NUMBER_CHANGED;
+
 
 public:
     availabile_transmitters () {
-        mutex_protection = PTHREAD_MUTEX_INITIALIZER;
+        //mutex_protection = PTHREAD_MUTEX_INITIALIZER;
         if (pthread_mutex_init(&mutex_protection, nullptr) != 0)
         {
             printf("\n availabile_transmitters mutex_protection initialization failed\n");
@@ -140,11 +153,12 @@ public:
 
     void update_transmitter(transmitter_addr& new_transmitter) {
         pthread_mutex_lock(&mutex_protection);
-        auto tr = transmitters.find(new_transmitter); //transmitters_set::iterator
+        transmitters_set::iterator tr = transmitters.find(new_transmitter); //transmitters_set::iterator
         if(tr != transmitters.end()) {
             (tr)-> last_reported_sec = current_time_sec();
         }
         else {
+            TRANSMITTER_NUMBER_CHANGED = true;
             transmitters.insert(new_transmitter);
         }
         pthread_mutex_unlock(&mutex_protection);
@@ -157,27 +171,89 @@ public:
         return empty;
     }
 
-    bool get_next_transmitter(transmitter_addr& ret_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
+    bool get_next_transmitter(transmitter_addr& ret_transmitter, transmitter_addr& current_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
+        pthread_mutex_lock(&mutex_protection);
         if(!transmitters.empty()) {
-            pthread_mutex_lock(&mutex_protection);
-            ret_transmitter = *transmitters.begin();
+            auto it = transmitters.find(current_transmitter);
+            if (transmitters.end() != it) {
+                    ret_transmitter = *it;
+            }
+            else {
+                ret_transmitter = *transmitters.begin();
+            }
             pthread_mutex_unlock(&mutex_protection);
             return true;
         }
+        pthread_mutex_unlock(&mutex_protection);
         return false;
     }
 
+    bool get_choosen_tansmitter(transmitter_addr& ret_transmitter) {
+        pthread_mutex_lock(&mutex_protection);
+        if(transmitters.empty()) {
+            pthread_mutex_unlock(&mutex_protection);
+            return false;
+        }
+        if(transmitters.size() < choosen_transmitter+1) {
+            printf("give choosen transmitter error");
+            exit(1);
+        }
+        auto it = transmitters.begin();
+        std::advance(it, choosen_transmitter);
+        ret_transmitter = *it;
+        pthread_mutex_unlock(&mutex_protection);
+        return true;
+    }
+
+
     void clear_not_reported_transmitters() {
         pthread_mutex_lock(&mutex_protection);
-        time_t current_time = time(nullptr);
         for (const transmitter_addr& tr : transmitters) {
             if(last_report_older_than<20>(tr.last_reported_sec)) {
                 transmitters.erase(tr);
+                choosen_transmitter = 0;
+                TRANSMITTER_NUMBER_CHANGED = true;
             }
         }
         pthread_mutex_unlock(&mutex_protection);
     }
+
+
+    void give_transmitters_names(list<string>& transmitter_names, int& row, int& line) {
+        transmitter_names.clear();
+
+        pthread_mutex_lock(&mutex_protection);
+        if(transmitters.empty()){
+            pthread_mutex_unlock(&mutex_protection);
+            return;
+        }
+        row = this->choosen_transmitter;
+        //auto it = transmitters.begin();
+        //std::advance(it, row);
+        line = 3;
+        row += 4; //---SIK RADIO ---
+        for (auto tr = transmitters.begin(); tr != transmitters.end(); tr++) {
+            transmitter_names.emplace_back("     " + tr->nazwa_stacji);
+        }
+        std::list<string>::iterator it = transmitter_names.begin();
+        std::advance(it, this->choosen_transmitter);
+        if(transmitter_names.empty()) {printf("transmitter_names empty!!!");}
+        (*it)[2] = '>';
+        pthread_mutex_unlock(&mutex_protection);
+    }
+
+
+    void change_transmitter(int move) {
+        pthread_mutex_lock(&mutex_protection);
+        int new_transmitter_index = choosen_transmitter + move;
+        this->choosen_transmitter = max(0, new_transmitter_index);
+        this->choosen_transmitter = min(max((int)transmitters.size()-1,0), (int)choosen_transmitter);
+        pthread_mutex_unlock(&mutex_protection);
+    }
+
+
 };
+
 
 
 
@@ -250,7 +326,6 @@ public:
     void insert(key k, q_type v) {
         keys_fifo.push(k);
         dict.emplace(k, v);
-        uint64_t s = dict.size();
         if(dict.size() > max_size) {
             dict.erase(keys_fifo.front()); keys_fifo.pop();
         }
@@ -365,17 +440,17 @@ public:
 
     void clear() {bytes.clear();}
     void write_to_array(char* arr, uint32_t beg, ssize_t write_len) {
-        for(int i = 0; i < bytes.size(); i++) {
+        for(uint32_t i = 0; i < bytes.size(); i++) {
             arr[beg + i] = bytes[i];
         }
     }
-    void pop_to_container(ssize_t pop_len, uint64_t fb_num, byte_container& new_container) {
+    void pop_to_container(size_t pop_len, uint64_t fb_num, byte_container& new_container) {
         assert(bytes.size() >= pop_len);
         new_container = byte_container(bytes.begin(), bytes.begin()+pop_len, fb_num);
         bytes.erase(bytes.begin(), bytes.begin()+pop_len);
         first_byte_num += pop_len;
     }
-    ssize_t size() {return bytes.size();}
+    size_t size() {return bytes.size();}
 
 
     void create_new(const char* arr, uint32_t beg, ssize_t size) {
@@ -420,15 +495,17 @@ public:
     uint32_t psize;
     uint64_t session_id;
     uint32_t audio_pack_size;
-
-    Input_management(uint32_t psize_, uint32_t fsize_):
-            dict(fsize_/psize_), psize(psize_),
-            first_byte_num(0), next_unused_package_num(0), fsize(fsize_), next_availabile_package_num(0) {
+    Input_management(uint32_t psize_, uint32_t fsize_): first_byte_num(0), next_unused_package_num(0),
+            next_availabile_package_num(0), fsize(fsize_),  dict(fsize_/psize_), psize(psize_)
+             {
         //stdin_debug_fd=fopen("bytes_input", "r");
         //psize = (uint32_t)strlen("spitfire_package");
         audio_pack_size = sizeof(session_id) + sizeof(first_byte_num) + psize;
         session_id = current_time_sec();
     }
+
+
+
     bool next_pack_available();
     bool pack_available(pack_id id);
     void load_packs_from_input();
@@ -487,7 +564,11 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages);
 void create_socket_binded_to_new_mcast_addr(int& mcast_sockfd, const char* mcast_addr, const char* data_port);
 void sendto_msg(int& sockfd ,const Connection_addres& connection, const char* msg, const uint64_t msg_len);
 void sendto_msg(int& sockfd ,Connection_addres connection, const char* msg, const uint64_t msg_len, uint16_t destination_port);
+
+
 void bind_socket(int& sockfd, Connection_addres& connection);
+void bind_to_first_free_port(int& sockfd);
+
 
 inline uint64_t unrolled(std::string const& value);
 

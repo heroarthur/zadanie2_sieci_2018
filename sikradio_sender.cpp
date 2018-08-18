@@ -36,18 +36,17 @@ using namespace std;
 
 
 const ssize_t listener_buff_size = 1000;
-//ctrl_port nasluchuje na rexmit i ZERO_SEVEN_COME_IN
-//data_port na tym porcie receiver ma nasluchiwac na pakiety audio
 
 
 
 
-std::atomic<bool> rasas;
+
+
 
 int main (int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
-    std::string mcast_addr = "224.0.0.3";
+    std::string mcast_addr;
     std::string nazwa_nadajnika;
     std::string data_port;
     std::string ctrl_port;
@@ -55,7 +54,6 @@ int main (int argc, char *argv[]) {
     uint32_t fsize;
     uint32_t rtime;
     concurrent_uniqe_list<string> retransmision_requests;
-
 
 
 
@@ -73,11 +71,10 @@ int main (int argc, char *argv[]) {
 
 
 
-    //psize = 16;
     Input_management input_queue(psize, fsize*20);
 
     pthread_t listener;
-    listening_thread_configuration thread_conf;//, &retransmision_requests};
+    listening_thread_configuration thread_conf;
     memset((void*)&thread_conf, 0, sizeof thread_conf);
     thread_conf.ctrl_port = ctrl_port;
     thread_conf.mcast_addr = mcast_addr;
@@ -85,7 +82,8 @@ int main (int argc, char *argv[]) {
     thread_conf.nazwa_stacji = nazwa_nadajnika;
     thread_conf.ret_list = &retransmision_requests;
 
-    if(pthread_create(&listener, nullptr, listening_rexmit_lookup, (void*)&thread_conf)) {//(void *)&thread_conf
+    if(pthread_create(&listener, nullptr,
+                      listening_rexmit_lookup, (void*)&thread_conf)) {
         printf("Error:unable to create thread");
         exit(1);
     }
@@ -97,8 +95,10 @@ int main (int argc, char *argv[]) {
         input_queue.load_packs_from_input();
         emit_series_of_ordered_packages(mcast_socket, mcast_con, input_queue);
         if(timer.new_round_start()){
-            packs_retransmission(mcast_socket, mcast_con, retransmision_requests, input_queue);
+            packs_retransmission(mcast_socket, mcast_con,
+                                 retransmision_requests, input_queue);
         }
     }
 }
+
 

@@ -36,11 +36,12 @@ void set_default_receiver_arguments(string& discover_addr, string& ui_port, stri
                                     string&data_port, uint32_t& bsize, uint32_t& rtime);
 
 
+
+
+
 void set_sikradio_receiver_arguments(const int& argc, char **argv,
                                      string& discover_addr, string& ui_port, string& ctrl_port,
-                                     uint32_t& bsize, uint32_t& rtime);
-
-
+                                     uint32_t& bsize, uint32_t& rtime, string& nazwa_preferowanego_odbiornika);
 
 
 struct current_transmitter_session {
@@ -69,6 +70,7 @@ struct current_transmitter_session {
     uint32_t psize;
 };
 
+
 void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session);
 
 void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port);
@@ -83,7 +85,6 @@ void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs
 
 void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
 
-void update_sender_identyfication(const recv_msg& identyfication, transmitters_set& transmitters);
 
 //void receive_senders_identyfication(int recv_sockfd, transmitters_set& transmitters);
 

@@ -40,7 +40,7 @@ bool next_retransmission_time(const uint32_t &rtime) {
 
 
 void create_audio_pack(uint64_t session_id, byte_container &p, char *tr_pack, const ssize_t packs_size) {
-    memset(tr_pack, 0, sizeof(tr_pack));
+    //memset(tr_pack, 0, packs_size);
     strcat_number<uint64_t>(session_id, tr_pack, 0);
     strcat_number<uint64_t>(p.first_byte_num, tr_pack, sizeof(uint64_t));
     //strcat(const_cast<char *>(p.bytes.c_str()), tr_pack);
@@ -109,11 +109,13 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
                                    uint32_t& psize, uint32_t& fsize, uint32_t& rtime) {
     int c;
     opterr = 0;
+    bool got_multicast_addres = false;
 
-    while ((c = getopt(argc, argv, "a:d:p:b:n:f:P:C:R:")) != -1)
+    while ((c = getopt(argc, argv, "a:d:p:b:n:f:P:C:R:")) != -1) {
         switch (c) {
             case 'a':
                 mcast_addr = string(optarg);
+                got_multicast_addres = true;
                 break;
             case 'P':
                 data_port = string(optarg);
@@ -145,6 +147,12 @@ void set_sikradio_sender_arguments(const int& argc, char **argv,
             default:
                 abort();
         }
+    }
+
+    if(!got_multicast_addres) {
+        fprintf(stderr, "Pass multicast_addres with -a\n");
+        exit(1);
+    }
 }
 
 

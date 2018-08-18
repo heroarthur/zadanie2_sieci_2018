@@ -15,20 +15,6 @@
 #include <chrono>
 
 
-struct mcast_listening_thread_configuration {
-    current_transmitter_session* session;
-};
-void* listening_mcast_packgs(void *threat_data);
-
-
-
-struct send_broadcast_data {
-    int broadcast_sockfd;
-    string broadcast_message;
-    Connection_addres broadcast_location;
-};
-void* send_broadcast(void *threat_data);
-
 
 
 struct recv_transmitter_data {
@@ -55,6 +41,8 @@ struct stdin_write_data {
     current_transmitter_session* session;
 };
 void* write_packages_to_stdin(void *threat_data);
+
+
 
 
 
