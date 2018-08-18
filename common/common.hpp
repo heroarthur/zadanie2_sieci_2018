@@ -54,10 +54,6 @@ const string BOREWICZ_HERE = "BOREWICZ_HERE";
 
 
 
-//const char* ZERO_SEVEN_COME_IN = "ZERO_SEVEN_COME_IN";
-//uint32_t zero_seven_len = 8;//strlen(ZERO_SEVEN_COME_IN) + 1;
-
-
 
 
 bool msgIsLookup(string msg);
@@ -95,7 +91,7 @@ uint64_t current_time_sec();
 
 
 
-struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
+struct transmitter_addr{
     Connection_addres direct_rexmit_con;
     string mcast_addr;
     string data_port;
@@ -104,10 +100,13 @@ struct transmitter_addr{//dodan Connection, popraw i uprosc architekture
 };
 
 struct transmitter_comp {
-    bool operator() (const transmitter_addr& lhs, const transmitter_addr& rhs) const
+    bool operator() (const transmitter_addr& lhs,
+                     const transmitter_addr& rhs) const
     {
         if(lhs.nazwa_stacji == rhs.nazwa_stacji)
-            return 0 < memcmp(&lhs.direct_rexmit_con.ai_addr, &rhs.direct_rexmit_con.ai_addr, sizeof(sockaddr));
+            return 0 < memcmp(&lhs.direct_rexmit_con.ai_addr,
+                              &rhs.direct_rexmit_con.ai_addr,
+                              sizeof(sockaddr));
         else
             return lhs.nazwa_stacji < rhs.nazwa_stacji;
     }
@@ -360,14 +359,14 @@ public:
         pthread_mutex_unlock(&mutex);
     }
 
-    void insert(key elem_id, q_type elem) { //std::list<q_type> insert(list<q_type>& l)
+    void insert(key elem_id, q_type elem) {
         pthread_mutex_lock(&mutex);
         if(dict.find(elem_id) != dict.end()) {
             dict[elem_id] = elem;
         }
         pthread_mutex_unlock(&mutex);
     }
-    void ret_uniqe_map(std::map<key,q_type> ret_map) {//    void ret_uniqe_list(list<q_type>& l) {
+    void ret_uniqe_map(std::map<key,q_type> ret_map) {
         ret_map.clear();
         pthread_mutex_lock(&mutex);
         ret_map.merge(dict);

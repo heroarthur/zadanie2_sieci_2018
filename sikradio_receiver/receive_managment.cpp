@@ -41,12 +41,15 @@ void get_int64_bit_value_(const char* datagram, uint64_t& val, int beg) {
 
 
 
-void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter) {
-    vector<string> l = split_string_to_container<vector<string> >(identyfication.text, " ");
+void parse_identyfication(const recv_msg& identyfication,
+                          transmitter_addr& transmitter) {
+    auto l =
+            split_string_to_container<vector<string>>(identyfication.text," ");
     transmitter = {};
     transmitter.mcast_addr = l[second];
     transmitter.data_port = l[third];
-    transmitter.nazwa_stacji = join_container_elements<std::vector<string>, from_fourth>(l, " ");
+    transmitter.nazwa_stacji =
+            join_container_elements<std::vector<string>, from_fourth>(l, " ");
     transmitter.direct_rexmit_con = identyfication.sender_addr;
     transmitter.last_reported_sec = current_time_sec();
 }
@@ -69,14 +72,17 @@ void clear_not_reported_transmitters(transmitters_set& transmitters) {
 
 
 
-void restart_audio_player(current_transmitter_session& session, uint16_t ctrl_port_u16) {
+void restart_audio_player(current_transmitter_session& session,
+                                        uint16_t ctrl_port_u16) {
     session.reported_transmitters.clear_not_reported_transmitters();
     pthread_mutex_lock(&session.mutex);
     if(session.reported_transmitters.empty()) return;
     transmitter_addr new_tr;
     if(!session.reported_transmitters.get_choosen_tansmitter(new_tr)) return;
     init_transmitter_session(session, new_tr, ctrl_port_u16);
-    create_socket_binded_to_new_mcast_addr(session.mcast_sockfd, session.mcast_addr.c_str(), session.data_port.c_str());
+    create_socket_binded_to_new_mcast_addr(session.mcast_sockfd,
+                                           session.mcast_addr.c_str(),
+                                           session.data_port.c_str());
     FD_ZERO(&session.mcast_fd_set);
     FD_SET(session.mcast_sockfd, &session.mcast_fd_set);
     pthread_mutex_unlock(&session.mutex);
@@ -86,7 +92,9 @@ void restart_audio_player(current_transmitter_session& session, uint16_t ctrl_po
 
 
 
-void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs, current_transmitter_session& session) {
+void send_rexmit(int rexmit_sockfd,
+                 concurrent_uniqe_list<string>& missing_packs,
+                 current_transmitter_session& session) {
     static list<string> missings;
     const uint32_t max_rexmit_lenght = 1200;
     char rexmit_msg[RECVFROM_BUFF_SIZE];
@@ -95,19 +103,19 @@ void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs
     missing_packs.clear();
     if(missings.empty()) return;
     string missing_packgage_msg = join_container_elements<list<string> >(missings, ",");
-    missing_packgage_msg = missing_packgage_msg.substr(0, min((uint32_t)missing_packgage_msg.length(), max_rexmit_lenght) );
+    missing_packgage_msg = missing_packgage_msg.substr(0, min((uint32_t)missing_packgage_msg.length(), max_rexmit_lenght));
     string louder_please_msg = LOUDER_PLEASE + " " + missing_packgage_msg;
     mempcpy(rexmit_msg, louder_please_msg.c_str(), louder_please_msg.length());
     rexmit_msg[louder_please_msg.length()] = '\0';
-    sendto_msg(rexmit_sockfd, session.current_transmitter.direct_rexmit_con, louder_please_msg.c_str(), louder_please_msg.length()+1, session.ctrl_port_u16);
-
+    sendto_msg(rexmit_sockfd, session.current_transmitter.direct_rexmit_con, louder_please_msg.c_str(), louder_please_msg.length()+1);
     missings.clear();
 }
 
 
 
 
-void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port) {
+void init_transmitter_session(current_transmitter_session& session,
+                              const transmitter_addr& tr, uint16_t ctrl_port) {
     session.SESSION_ESTABLISHED = true;
     session.ctrl_port_u16 = ctrl_port;
     session.FIRST_PACKS_RECEIVED = false;
@@ -121,7 +129,10 @@ void init_transmitter_session(current_transmitter_session& session, const transm
 
 
 
-void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session) {
+void update_session_first_pack(uint64_t recv_session_id,
+                               uint64_t first_byte_num,
+                               uint32_t recv_psize,
+                               current_transmitter_session& session) {
     session.FIRST_PACKS_RECEIVED = true;
     session.byte0 = first_byte_num;
     session.last_pack_num = first_byte_num;
@@ -132,135 +143,6 @@ void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//write_sikradio_receiver_arguments(ui_port, ctrl_port, bsize, rtime);
 void write_sikradio_receiver_arguments(uint32_t ui_port, uint32_t ctrl_port,
                                        uint32_t bsize, uint32_t rtime) {
     printf("sikradio_receiver arguments:\n\
@@ -272,8 +154,12 @@ void write_sikradio_receiver_arguments(uint32_t ui_port, uint32_t ctrl_port,
 
 
 
-void set_default_receiver_arguments(string& discover_addr, string& ui_port, string& ctrl_port,
-                                    string&data_port, uint32_t& bsize, uint32_t& rtime){
+void set_default_receiver_arguments(string& discover_addr,
+                                    string& ui_port,
+                                    string& ctrl_port,
+                                    string& data_port,
+                                    uint32_t& bsize,
+                                    uint32_t& rtime){
     discover_addr = DISCOVER_ADDR_DEF;
     data_port = to_string(DATA_PORT_DEF);
     ctrl_port = to_string(CTRL_PORT_DEF);
@@ -285,8 +171,12 @@ void set_default_receiver_arguments(string& discover_addr, string& ui_port, stri
 
 
 void set_sikradio_receiver_arguments(const int& argc, char **argv,
-                                     string& discover_addr, string& ui_port, string& ctrl_port,
-                                     uint32_t& bsize, uint32_t& rtime, string& nazwa_preferowanego_odbiornika) {
+                                     string& discover_addr,
+                                     string& ui_port,
+                                     string& ctrl_port,
+                                     uint32_t& bsize,
+                                     uint32_t& rtime,
+                                     string& nazwa_preferowanego_odbiornika) {
     int c;
     opterr = 0;
 
@@ -315,18 +205,14 @@ void set_sikradio_receiver_arguments(const int& argc, char **argv,
 
             case '?':
                 if (optopt == 'c')
-                    fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+                    fprintf(stderr,
+                            "Option -%c requires an argument.\n", optopt);
                 else if (isprint(optopt))
                     fprintf(stderr, "Unknown option `-%c'.\n", optopt);
                 else
-                    fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
-                //exit(1);
+                    fprintf(stderr,
+                            "Unknown option character `\\x%x'.\n", optopt);
             default:
                 abort();
         }
-
-    /*if (argv[optind] == nullptr || argv[optind + 1] == nullptr) {
-        printf("Mandatory argument(s) missing\n");
-        exit(1);
-    }*/
 }

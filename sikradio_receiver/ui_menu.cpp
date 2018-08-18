@@ -58,17 +58,7 @@ char set_cursor[SET_CURSOR_SIZE];
 
 char buffer[MENU_BUFFER_SIZE];
 
-struct op {
-    int pole1;
-    int pole2;
-    char pole3;
-} Option;
 
-struct Struktura {
-    int pole1;
-    int pole2;
-    char pole3;
-};
 
 
 

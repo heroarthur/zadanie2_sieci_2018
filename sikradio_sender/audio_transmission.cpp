@@ -41,8 +41,8 @@ bool next_retransmission_time(const uint32_t &rtime) {
 
 void create_audio_pack(uint64_t session_id, byte_container &p, char *tr_pack, const ssize_t packs_size) {
     //memset(tr_pack, 0, packs_size);
-    strcat_number<uint64_t>(session_id, tr_pack, 0);
-    strcat_number<uint64_t>(p.first_byte_num, tr_pack, sizeof(uint64_t));
+    memcpy_number<uint64_t>(session_id, tr_pack, 0);
+    memcpy_number<uint64_t>(p.first_byte_num, tr_pack, sizeof(uint64_t));
     //strcat(const_cast<char *>(p.bytes.c_str()), tr_pack);
     p.write_to_array(tr_pack, sizeof(uint64_t)*2, packs_size);
     //memcpy((void *) p.bytes.c_str(), tr_pack + 2 * sizeof(uint64_t), p.bytes.length());

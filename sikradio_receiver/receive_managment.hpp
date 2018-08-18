@@ -32,16 +32,24 @@ using namespace std;
 
 
 
-void set_default_receiver_arguments(string& discover_addr, string& ui_port, string& ctrl_port,
-                                    string&data_port, uint32_t& bsize, uint32_t& rtime);
+void set_default_receiver_arguments(string& discover_addr,
+                                    string& ui_port,
+                                    string& ctrl_port,
+                                    string&data_port,
+                                    uint32_t& bsize,
+                                    uint32_t& rtime);
 
 
 
 
 
 void set_sikradio_receiver_arguments(const int& argc, char **argv,
-                                     string& discover_addr, string& ui_port, string& ctrl_port,
-                                     uint32_t& bsize, uint32_t& rtime, string& nazwa_preferowanego_odbiornika);
+                                     string& discover_addr,
+                                     string& ui_port,
+                                     string& ctrl_port,
+                                     uint32_t& bsize,
+                                     uint32_t& rtime,
+                                     string& nazwa_preferowanego_odbiornika);
 
 
 struct current_transmitter_session {
@@ -62,7 +70,6 @@ struct current_transmitter_session {
     uint64_t cur_pack_num;
 
     transmitter_addr current_transmitter;
-    //limited_concurrent_map<uint64_t, byte_container>* packs_dict;
     limited_dict<uint64_t, byte_container>* packs_dict;
 
     uint64_t byte0;
@@ -71,22 +78,26 @@ struct current_transmitter_session {
 };
 
 
-void update_session_first_pack(uint64_t recv_session_id, uint64_t first_byte_num, uint32_t recv_psize, current_transmitter_session& session);
+void update_session_first_pack(uint64_t recv_session_id,
+                               uint64_t first_byte_num,
+                               uint32_t recv_psize,
+                               current_transmitter_session& session);
 
-void init_transmitter_session(current_transmitter_session& session, const transmitter_addr& tr, uint16_t ctrl_port);
+void init_transmitter_session(current_transmitter_session& session,
+                              const transmitter_addr& tr,
+                              uint16_t ctrl_port);
 
-void restart_audio_player(current_transmitter_session& session, uint16_t ctrl_port_u16);
+void restart_audio_player(current_transmitter_session& session,
+                          uint16_t ctrl_port_u16);
 
-void send_rexmit(int rexmit_sockfd, concurrent_uniqe_list<string>& missing_packs, current_transmitter_session& session);
-
-//void update_rexmit(current_transmitter_session& session);
-
-//void manage_receive_audio(int rexmit_sockfd, uint16_t rexmit_port, const uint32_t bsize, transmitters_set& availabile_transmiters, const uint32_t& rexmit_time, current_transmitter_session& session);
-
-void parse_identyfication(const recv_msg& identyfication, transmitter_addr& transmitter);
+void send_rexmit(int rexmit_sockfd,
+                 concurrent_uniqe_list<string>& missing_packs,
+                 current_transmitter_session& session);
 
 
-//void receive_senders_identyfication(int recv_sockfd, transmitters_set& transmitters);
+void parse_identyfication(const recv_msg& identyfication,
+                          transmitter_addr& transmitter);
+
 
 void clear_not_reported_transmitters(transmitters_set& transmitters);
 
