@@ -172,9 +172,6 @@ void fill_connection_struct(Connection_addres &connection,
                             struct addrinfo *servinfo) {
     connection.ai_addr = *(servinfo->ai_addr);
     connection.ai_addrlen = servinfo->ai_addrlen;
-    connection.ai_family = servinfo->ai_family;
-    connection.ai_socktype = servinfo->ai_socktype;
-    connection.ai_protocol = servinfo->ai_protocol;
 }
 
 
@@ -205,9 +202,7 @@ void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
     recv_msg m;
     struct sockaddr their_addr;
     socklen_t addr_len;
-
     ssize_t  numbytes;
-
 
     while(!socket_clear) {
         m = recv_msg{};

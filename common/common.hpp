@@ -72,9 +72,6 @@ const uint32_t RECVFROM_BUFF_SIZE = 10000;
 struct Connection_addres {
     struct sockaddr ai_addr;
     socklen_t ai_addrlen;
-    int ai_family;
-    int ai_socktype;
-    int ai_protocol;
 };
 
 struct recv_msg {

@@ -34,15 +34,6 @@ using namespace std;
 
 
 
-
-const ssize_t listener_buff_size = 1000;
-
-
-
-
-
-
-
 int main (int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 

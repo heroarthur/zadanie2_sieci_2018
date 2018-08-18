@@ -105,15 +105,26 @@ int main (int argc, char *argv[]) {
     uint32_t rtime;
 
 
-    set_default_receiver_arguments(discover_addr, ui_port, ctrl_port, data_port, bsize, rtime);
+    set_default_receiver_arguments(discover_addr,
+                                   ui_port,
+                                   ctrl_port,
+                                   data_port,
+                                   bsize,
+                                   rtime);
 
 
-    set_sikradio_receiver_arguments(argc, argv, discover_addr, ui_port, ctrl_port, bsize, rtime, nazwa_preferowanego_nadajnika);
+    set_sikradio_receiver_arguments(argc, argv,
+                                    discover_addr,
+                                    ui_port,
+                                    ctrl_port,
+                                    bsize,
+                                    rtime,
+                                    nazwa_preferowanego_nadajnika);
 
 
 
     transmitters_set finded_transmitters;
-    uint16_t ctrl_port_num = parse_optarg_to_number(0, ctrl_port.c_str());
+    uint16_t ctrl_port_num = (uint16_t)parse_optarg_to_number(0, ctrl_port.c_str());
 
 
     int send_rexmit_sockfd;
@@ -133,9 +144,12 @@ int main (int argc, char *argv[]) {
 
 
     Connection_addres broadcast_location{};
-    get_communication_addr(broadcast_location, discover_addr.c_str(), ctrl_port.c_str());
+    get_communication_addr(broadcast_location,
+                           discover_addr.c_str(),
+                           ctrl_port.c_str());
     int broadcast = 1;
-    setsockopt(recv_senders_id, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof broadcast);
+    setsockopt(recv_senders_id, SOL_SOCKET, SO_BROADCAST,
+               &broadcast, sizeof broadcast);
 
 
     current_transmitter_session session;
@@ -153,7 +167,7 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
 
-    concurrent_uniqe_list<string> rexmit_packgs_numbers;  //    concurrent_uniqe_list<string> rexmit_packgs_numbers;
+    concurrent_uniqe_list<string> rexmit_packgs_numbers;
 
 
 
