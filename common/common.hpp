@@ -53,20 +53,18 @@ const string BOREWICZ_HERE = "BOREWICZ_HERE";
 
 
 
+const uint32_t second = 1;
+const uint32_t third = 2;
+const uint32_t from_fourth = 4;
+
+const uint32_t RECVFROM_BUFF_SIZE = 10000;
+const uint64_t MICROSECOND = 1000000;
 
 
 
 bool msgIsLookup(string msg);
 bool msgIsRexmit(string msg);
 bool msgIsBorewicz(string msg);
-
-
-const uint32_t second = 1;
-const uint32_t third = 2;
-const uint32_t from_fourth = 4;
-
-const uint32_t RECVFROM_BUFF_SIZE = 10000;
-
 
 
 struct Connection_addres {
@@ -122,7 +120,6 @@ bool validate_port(string& port);
 
 
 
-
 typedef std::set<transmitter_addr, transmitter_comp> transmitters_set;
 
 class availabile_transmitters {
@@ -135,6 +132,7 @@ public:
 
 public:
     availabile_transmitters () {
+        TRANSMITTER_NUMBER_CHANGED = false;
         if (pthread_mutex_init(&mutex_protection, nullptr) != 0)
         {
             printf("\n availabile_transmitters mutex_protection initialization failed\n");
@@ -144,7 +142,7 @@ public:
 
     void update_transmitter(transmitter_addr& new_transmitter) {
         pthread_mutex_lock(&mutex_protection);
-        transmitters_set::iterator tr = transmitters.find(new_transmitter);
+        auto tr = transmitters.find(new_transmitter);
         if(tr != transmitters.end()) {
             (tr)-> last_reported_sec = current_time_sec();
         }
@@ -162,23 +160,6 @@ public:
         return empty;
     }
 
-    bool get_next_transmitter(transmitter_addr& ret_transmitter,
-                              transmitter_addr& current_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
-        pthread_mutex_lock(&mutex_protection);
-        if(!transmitters.empty()) {
-            auto it = transmitters.find(current_transmitter);
-            if (transmitters.end() != it) {
-                    ret_transmitter = *it;
-            }
-            else {
-                ret_transmitter = *transmitters.begin();
-            }
-            pthread_mutex_unlock(&mutex_protection);
-            return true;
-        }
-        pthread_mutex_unlock(&mutex_protection);
-        return false;
-    }
 
     bool get_choosen_tansmitter(transmitter_addr& ret_transmitter) {
         pthread_mutex_lock(&mutex_protection);
@@ -221,7 +202,6 @@ public:
             return;
         }
         row = this->choosen_transmitter;
-
         line = 3;
         row += 4; //---SIK RADIO ---
         for (auto tr = transmitters.begin(); tr != transmitters.end(); tr++) {
@@ -242,11 +222,7 @@ public:
         this->choosen_transmitter = (uint32_t)min(max((int)transmitters.size()-1,0), (int)choosen_transmitter);
         pthread_mutex_unlock(&mutex_protection);
     }
-
-
 };
-
-
 
 
 
@@ -285,10 +261,9 @@ string join_container_elements(T v, string delimiter) {
         s.pop_back();
     return s;
 }
-
-
-
 uint32_t parse_optarg_to_number(int option, const char *optarg);
+
+
 
 
 
@@ -301,17 +276,10 @@ private:
 
 public:
     limited_dict (uint32_t max_size_): max_size(max_size_) {}
-    bool two_highest_keys(key& previous, key& highest) {
-        if(dict.size() < 2) return false;
-        previous = prev(dict.end(), 2)->first;
-        highest = prev(dict.end(), 1)->first;
-        return true;
-    };
     void ret_underlying_map(map<key,q_type>& ret_map) {
         ret_map.swap(dict); dict.clear();
         while(keys_fifo.size()>0) keys_fifo.pop();}
 
-    void set_max_size(uint32_t new_max_size) {max_size = new_max_size;}
     bool contain(key k) {return dict.find(k) != dict.end();}
     bool empty() {return dict.empty();}
     ssize_t length() {return dict.size();}
@@ -326,51 +294,6 @@ public:
         }
     }
 };
-
-
-
-
-
-template <typename key, typename q_type>
-class limited_concurrent_map {
-private:
-    uint32_t max_size;
-    std::map<key,q_type> dict;
-    pthread_mutex_t	mutex;
-
-public:
-    limited_concurrent_map (uint32_t max_size_): max_size(max_size_) {
-        mutex = PTHREAD_MUTEX_INITIALIZER;
-        if (pthread_mutex_init(&mutex, nullptr) != 0)
-        {
-            printf("\n limited_concurrent_dict mutex_protection initialization failed\n");
-            exit(1);
-        }
-    }
-    void set_max_size(uint32_t new_max_size) {max_size = new_max_size;}
-
-    void clear() {
-        pthread_mutex_lock(&mutex);
-        dict.clear();
-        pthread_mutex_unlock(&mutex);
-    }
-
-    void insert(key elem_id, q_type elem) {
-        pthread_mutex_lock(&mutex);
-        if(dict.find(elem_id) != dict.end()) {
-            dict[elem_id] = elem;
-        }
-        pthread_mutex_unlock(&mutex);
-    }
-    void ret_uniqe_map(std::map<key,q_type> ret_map) {
-        ret_map.clear();
-        pthread_mutex_lock(&mutex);
-        ret_map.merge(dict);
-        dict.clear();
-        pthread_mutex_unlock(&mutex);
-    }
-};
-
 
 
 
@@ -428,12 +351,7 @@ public:
     byte_container(vector<char>::iterator beg, vector<char>::iterator end, uint64_t first_byte_num_) {
         bytes.clear(); bytes.assign(beg, end); first_byte_num = first_byte_num_;
     };
-    byte_container(vector<char> input_bytes, vector<char>::iterator end, uint64_t first_byte_num_) {
-        bytes.clear(); bytes.swap(input_bytes); first_byte_num = first_byte_num_;
-    };
 
-
-    void clear() {bytes.clear();}
     void write_to_array(char* arr, uint32_t beg, ssize_t write_len) {
         for(uint32_t i = 0; i < bytes.size(); i++) {
             arr[beg + i] = bytes[i];
@@ -495,8 +413,6 @@ public:
         session_id = current_time_sec();
     }
 
-
-
     bool next_pack_available();
     bool pack_available(pack_id id);
     void load_packs_from_input();
@@ -506,10 +422,6 @@ public:
 
 
 
-
-
-
-const uint64_t MICROSECOND = 1000000;
 
 
 
@@ -538,30 +450,15 @@ public:
 
 
 
-
-
-
-
-
-
 void get_int64_bit_value(const char* datagram, uint64_t& val, int beg);
-
-
-
-
-
 void fill_connection_struct(Connection_addres &connection, struct addrinfo *servinfo);
 void get_communication_addr(Connection_addres& connection, const char* ip_addr, const char* port);
-void receive_pending_messages(int& sockfd, list<recv_msg>& messages);
 void create_socket_binded_to_new_mcast_addr(int& mcast_sockfd, const char* mcast_addr, const char* data_port);
 void sendto_msg(int& sockfd ,const Connection_addres& connection, const char* msg, const uint64_t msg_len);
-void sendto_msg(int& sockfd ,Connection_addres connection, const char* msg, const uint64_t msg_len, uint16_t destination_port);
 
 
 void bind_socket(int& sockfd, Connection_addres& connection);
 void bind_to_first_free_port(int& sockfd);
-
-
 inline uint64_t unrolled(std::string const& value);
 
 

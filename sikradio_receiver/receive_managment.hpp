@@ -61,10 +61,8 @@ struct current_transmitter_session {
 
     int mcast_sockfd;
     fd_set mcast_fd_set;
-
     string mcast_addr;
     string data_port;
-    uint16_t ctrl_port_u16;
 
     uint64_t last_pack_num;
     uint64_t cur_pack_num;

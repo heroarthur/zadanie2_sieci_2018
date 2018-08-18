@@ -77,10 +77,6 @@ MenuState *currentMenu = &mainMenu;
 
 
 
-
-
-
-const uint64_t UI_BUFF_SIZE = 10000;
 void create_ui_menu(char* ui_menu_buff, list<string> nazwy_odbiornikow) {
     strcat(ui_menu_buff, LABEL);
     strcat(ui_menu_buff, SIK_RADIO);
@@ -94,8 +90,6 @@ void create_ui_menu(char* ui_menu_buff, list<string> nazwy_odbiornikow) {
 
 
 
-
-
 void setTelnetOptions(int msg_sock) {
     char msg[INTERACTION_SIZE];
     memset(msg, 0, INTERACTION_SIZE);
@@ -105,35 +99,6 @@ void setTelnetOptions(int msg_sock) {
     if(write(msg_sock, msg, snd_len) == -1) {
         perror("write erro | check client connection\n");
     }
-
-}
-
-
-uint32_t parse_optarg_to_int_validation(char* optarg) {
-    char * cptr;
-    uint32_t v = (uint32_t)strtol(optarg, &cptr, 10);
-    if ((*cptr) != '\0' || cptr == optarg) {
-        cerr << "passed argument wrong " << optarg << endl;
-        exit(1);
-    }
-    return v;
-}
-
-
-uint32_t parse_optarg_to_int(char* optarg) {
-    char * t;
-    int64_t check;
-    check = (int64_t)strtol(optarg, &t, 10);
-    if ((*t) != '\0' || t == optarg) {
-        cerr << "port param is wrong type " << optarg << endl;
-        exit(1);
-    }
-    if(check < 1 || check > 65535) {
-        cerr << "port in wrong range   " << optarg << endl;
-        exit(1);
-    }
-    uint32_t v = (uint32_t)check;
-    return v;
 }
 
 
@@ -141,8 +106,6 @@ void setAnsiCursorPos(char* command, int row, int line) {
     memset(command,0,SET_CURSOR_SIZE);
     snprintf(command, SET_CURSOR_SIZE, "\033[%d;%dH" , line, row);
 }
-
-
 
 
 
@@ -160,7 +123,6 @@ void changeState(char* interaction, MenuState **menu) {
     (*menu)->optionPointer = setOptionPointer(interaction,
             (*menu)->optionPointer, (*menu)->menu_fields);
 }
-
 
 
 void create_UI_menu_message(char *buff, char *addBuff, MenuState *menu) {
@@ -211,15 +173,6 @@ static char buff[MENU_BUFFER_SIZE];
 static char add[10];
 
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
 void* support_ui_connection(void* thread_data)
 {
@@ -317,9 +270,8 @@ void* support_ui_connection(void* thread_data)
             for(j = 0; j <= fdmax; j++) {
                 // send to everyone!
                 if (FD_ISSET(j, &master)) {
-                    // except the listener and ourselves
+                    // except the listener
                     if (j != listener) {
-                        //setTelnetOptions(newfd);
                         session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
                                                                                mainMenu.row, mainMenu.line);
                         create_UI_menu_message(buff, add, &mainMenu);
@@ -346,12 +298,6 @@ void* support_ui_connection(void* thread_data)
                         if (newfd > fdmax) {    // keep track of the max
                             fdmax = newfd;
                         }
-                        printf("selectserver: new connection from %s on "
-                               "socket %d\n",
-                               inet_ntop(remoteaddr.ss_family,
-                                         get_in_addr((struct sockaddr*)&remoteaddr),
-                                         remoteIP, INET6_ADDRSTRLEN),
-                               newfd);
                         setTelnetOptions(newfd);
                         session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
                                                                                mainMenu.row, mainMenu.line);

@@ -27,19 +27,6 @@
 using namespace std;
 
 
-void get_int64_bit_value_(const char* datagram, uint64_t& val, int beg) {
-    uint8_t a[8];
-    mempcpy(a, datagram + beg, sizeof(uint64_t));
-    //v = *((uint64_t*) a);
-    for(uint16_t i = 0; i < sizeof(uint64_t); i++) {
-        ((uint8_t*)&val)[i] = ((uint8_t*) a)[i];
-    }
-    val = be64toh(val);
-}
-
-
-
-
 
 void parse_identyfication(const recv_msg& identyfication,
                           transmitter_addr& transmitter) {
@@ -141,16 +128,6 @@ void update_session_first_pack(uint64_t recv_session_id,
     session.session_id = recv_session_id;
 }
 
-
-
-void write_sikradio_receiver_arguments(uint32_t ui_port, uint32_t ctrl_port,
-                                       uint32_t bsize, uint32_t rtime) {
-    printf("sikradio_receiver arguments:\n\
-    ui_port: %u\n\
-    ctrl_port: %u\n\
-    bsize: %u\n\
-    rtime: %u\n", ui_port, ctrl_port, bsize, rtime);
-}
 
 
 

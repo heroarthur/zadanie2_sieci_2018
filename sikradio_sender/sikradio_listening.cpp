@@ -27,11 +27,6 @@
 using namespace std;
 
 
-const ssize_t listener_buff_size = 1000;
-
-
-
-
 string reply_communicat(string header, string mcast_addr, string data_port,
                                                     string nazwa_stacji) {
     //BOREWICZ_HERE [MCAST_ADDR] [DATA_PORT] [nazwa stacji]

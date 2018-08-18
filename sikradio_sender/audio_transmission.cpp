@@ -28,17 +28,6 @@
 using namespace std;
 
 
-
-bool next_retransmission_time(const uint32_t &rtime) {
-    static clock_t last_check = clock();
-    float diff = (clock() - last_check)*100;
-    if(diff < rtime)
-        return false;
-    last_check = clock();
-    return true;
-}
-
-
 void create_audio_pack(uint64_t session_id, byte_container &p, char *tr_pack, const ssize_t packs_size) {
     memcpy_number<uint64_t>(session_id, tr_pack, 0);
     memcpy_number<uint64_t>(p.first_byte_num, tr_pack, sizeof(uint64_t));
@@ -80,24 +69,6 @@ void packs_retransmission(int sockd, Connection_addres& con, concurrent_uniqe_li
 }
 
 
-
-
-//./zadanie2 -a "123.123.123.123" -P 1234 -n "spitfire nazwa odbiornika" -C 4444  -p 900 -f 300 -R 250
-//write_sikradio_sender_arguments(mcast_addr, nazwa_odbiornika, data_port, ctrl_port, psize, fsize, rtime);
-void write_sikradio_sender_arguments(string mcast_addr, string nazwa_nadajnika,
-                                     string data_port, uint32_t ctrl_port,
-                                     uint32_t psize, uint32_t fsize, uint32_t rtime) {
-    printf("sikradio_sender arguments:\
-    mcast_addr: %s\n\
-    nazwa_nadajnika: %s\n\
-    data_port: %s\n\
-    ctrl_port: %u\n\
-    psize: %u\n\
-    fsize: %u\n\
-    rtime: %u\n",
-           mcast_addr.c_str(), nazwa_nadajnika.c_str(),
-           data_port.c_str(), ctrl_port, psize, fsize, rtime);
-}
 
 
 void set_sikradio_sender_arguments(const int& argc, char **argv,

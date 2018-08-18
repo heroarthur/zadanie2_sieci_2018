@@ -76,12 +76,6 @@ bool validate_port(string& port) {
 
 
 
-
-
-
-
-
-
 void Input_management::load_packs_from_input() {
     byte_container readed_bytes = byte_container();
     static byte_container unfinished_pack = byte_container();
@@ -152,8 +146,6 @@ void bind_to_first_free_port(int& sockfd) {
 }
 
 
-
-
 uint64_t current_time_sec() {
     static struct timeval tval;
     if(gettimeofday(&tval, nullptr) == 0) {
@@ -162,9 +154,6 @@ uint64_t current_time_sec() {
     }
     return 0;
 }
-
-
-
 
 
 
@@ -195,38 +184,6 @@ void get_communication_addr(Connection_addres& connection,
 
 
 
-void receive_pending_messages(int& sockfd, list<recv_msg>& messages) {
-    static char buff[RECVFROM_BUFF_SIZE];
-    bool socket_clear = false;
-    messages.clear();
-    recv_msg m;
-    struct sockaddr their_addr;
-    socklen_t addr_len;
-    ssize_t  numbytes;
-
-    while(!socket_clear) {
-        m = recv_msg{};
-        if ((numbytes = recvfrom(sockfd, buff, RECVFROM_BUFF_SIZE-1,
-                0, &their_addr, &addr_len)) == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                socket_clear = true;
-                continue;
-            }
-            else {
-                perror("recvfrom");
-                continue;
-            }
-        }
-        buff[numbytes] = '\0';
-        m.text = string(buff);
-        m.sender_addr.ai_addr = their_addr;
-        m.sender_addr.ai_addrlen = addr_len;
-        messages.emplace_back(m);
-    }
-}
-
-
-
 void get_int64_bit_value(const char* datagram, uint64_t& val, int beg) {
     uint8_t a[8];
     mempcpy(a, datagram + beg, sizeof(uint64_t));
@@ -235,7 +192,6 @@ void get_int64_bit_value(const char* datagram, uint64_t& val, int beg) {
     }
     val = be64toh(val);
 }
-
 
 
 void create_socket_binded_to_new_mcast_addr(int& mcast_sockfd,
@@ -264,13 +220,11 @@ void create_socket_binded_to_new_mcast_addr(int& mcast_sockfd,
 }
 
 
-
 void sendto_msg(int& sockfd ,const Connection_addres& connection,
                 const char* msg, const uint64_t msg_len) {
-    ssize_t numbytes;
-    if ((numbytes = sendto(sockfd, msg, msg_len, 0,
+    if (sendto(sockfd, msg, msg_len, 0,
                            &(connection.ai_addr),
-                           connection.ai_addrlen)) == -1) {
+                           connection.ai_addrlen) == -1) {
         perror("talker: sendto");
         exit(1);
     }
