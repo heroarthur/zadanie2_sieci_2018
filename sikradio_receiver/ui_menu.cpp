@@ -39,6 +39,8 @@ using namespace std;
 #define Up "\x1B\x5B\x41"
 #define Down "\x1B\x5B\x42"
 
+#define LABEL "------------------------------------------------------------------------\033E"
+#define SIK_RADIO "SIK Radio\033E"
 
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -54,17 +56,13 @@ char character_mode[] = "\377\375\042\377\373\001";
 char clear_terminal[] = "\033[2J";
 char cursor_upper_left_corner[] = "\033[H";
 char reset_terminal[] = "\033c";
-char set_cursor[SET_CURSOR_SIZE];
-
-char buffer[MENU_BUFFER_SIZE];
-
 
 
 
 
 struct menu {
-    int row;
-    int line;
+    uint32_t row;
+    uint32_t line;
     uint32_t optionPointer;
     uint32_t menu_fields;
     list<string> nazwy_odbiornikow;
@@ -72,38 +70,23 @@ struct menu {
 };
 typedef struct menu MenuState;
 
-struct res {
-    char screen[30];
-    char wroteOption[3];
-    int line;
-    int row;
-    bool disconnect;
-};
-typedef struct res ResultMenu;
 
 
 MenuState mainMenu;
-MenuState BsubMenu;
-ResultMenu menuResult;
 MenuState *currentMenu = &mainMenu;
 
 
 
 
-#define LABEL "------------------------------------------------------------------------\033E"
-#define SIK_RADIO "SIK Radio\033E"
-
-list<string> nazwy_odbiornikow;
 
 
 const uint64_t UI_BUFF_SIZE = 10000;
-char UI_BUFF[UI_BUFF_SIZE];
 void create_ui_menu(char* ui_menu_buff, list<string> nazwy_odbiornikow) {
     strcat(ui_menu_buff, LABEL);
     strcat(ui_menu_buff, SIK_RADIO);
     strcat(ui_menu_buff, LABEL);
     for(const string& nazwa_odbiornika: nazwy_odbiornikow) {
-        strcat(ui_menu_buff, nazwa_odbiornika.c_str());//string.c_str()
+        strcat(ui_menu_buff, nazwa_odbiornika.c_str());
         strcat(ui_menu_buff, "\033E");
     }
     strcat(ui_menu_buff, LABEL);
@@ -163,7 +146,8 @@ void setAnsiCursorPos(char* command, int row, int line) {
 
 
 
-int setOptionPointer(char* interaction, int optionPointer, uint32_t menu_fields) {
+int setOptionPointer(char* interaction, int optionPointer,
+                     uint32_t menu_fields) {
     if(strcmp(interaction, Down) == 0)
         return MIN((int)menu_fields, optionPointer+1);
     else if(strcmp(interaction, Up) == 0)
@@ -173,33 +157,26 @@ int setOptionPointer(char* interaction, int optionPointer, uint32_t menu_fields)
 
 
 void changeState(char* interaction, MenuState **menu) {
-    (*menu)->optionPointer = setOptionPointer(interaction, (*menu)->optionPointer, (*menu)->menu_fields);
+    (*menu)->optionPointer = setOptionPointer(interaction,
+            (*menu)->optionPointer, (*menu)->menu_fields);
 }
 
 
 
-void createMessage(char *buff, char* addBuff, MenuState *menu) {
+void create_UI_menu_message(char *buff, char *addBuff, MenuState *menu) {
     setAnsiCursorPos(addBuff, menu->line, menu->row);
     memset(buff, 0, MENU_BUFFER_SIZE);
     strcpy(buff, clear_terminal);
     create_ui_menu(buff, menu->nazwy_odbiornikow);
     strcat(buff, menu->menuScreen);
     strcat(buff, cursor_upper_left_corner);
-    //strcat(buff, reset_terminal);
-
-    //strcat(buff, menu->wroteOption);
     strcat(buff, addBuff);
 }
 
 
 void resultMenuScreen(char* interaction, MenuState **menu) {
-    //result->disconnect = clientCloseMenu(interaction, *menu);
     changeState(interaction, menu);
 }
-
-
-
-
 
 
 
@@ -221,8 +198,6 @@ void sendNewMenuToClient(int msg_sock, char* buff_msg) {
 
 
 
-
-
 int interactionIsValid(char* interaction) {
     if (strcmp(interaction, Down) == 0)
         return 1;
@@ -232,27 +207,8 @@ int interactionIsValid(char* interaction) {
 }
 
 
-/**
-------------------------------------------------------------------------
-SIK Radio
-------------------------------------------------------------------------
-  PR1
-> Radio "Disco Pruszkow"
-  Radiowa Trojka
-------------------------------------------------------------------------
-
-
- */
-
-
-
-
-
-
-
 static char buff[MENU_BUFFER_SIZE];
 static char add[10];
-
 
 
 // get sockaddr, IPv4 or IPv6:
@@ -270,8 +226,8 @@ void* support_ui_connection(void* thread_data)
     struct UI_THREAD_DATA* config = (UI_THREAD_DATA*)thread_data;
     current_transmitter_session* session = config->session;
 
-    session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow, mainMenu.row, mainMenu.line); //mainMenu.nazwy_odbiornikow)
-
+    session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
+                                                           mainMenu.row, mainMenu.line);
 
 
     fd_set master;    // master file descriptor list
@@ -364,8 +320,9 @@ void* support_ui_connection(void* thread_data)
                     // except the listener and ourselves
                     if (j != listener) {
                         //setTelnetOptions(newfd);
-                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow, mainMenu.row, mainMenu.line); //mainMenu.nazwy_odbiornikow)
-                        createMessage(buff, add, &mainMenu);
+                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
+                                                                               mainMenu.row, mainMenu.line);
+                        create_UI_menu_message(buff, add, &mainMenu);
                         sendNewMenuToClient(j, buff);
                     }
                 }
@@ -373,7 +330,6 @@ void* support_ui_connection(void* thread_data)
             session->reported_transmitters.TRANSMITTER_NUMBER_CHANGED = false;
         }
 
-        // run through the existing connections looking for data to read
         for(i = 0; i <= fdmax; i++) {
             if (FD_ISSET(i, &read_fds)) { // we got one!!
                 if (i == listener) {
@@ -397,12 +353,12 @@ void* support_ui_connection(void* thread_data)
                                          remoteIP, INET6_ADDRSTRLEN),
                                newfd);
                         setTelnetOptions(newfd);
-                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow, mainMenu.row, mainMenu.line); //mainMenu.nazwy_odbiornikow)
-                        createMessage(buff, add, &mainMenu);
+                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
+                                                                               mainMenu.row, mainMenu.line);
+                        create_UI_menu_message(buff, add, &mainMenu);
                         sendNewMenuToClient(newfd, buff);
                     }
                 } else {
-                    // handle data from a client
                     memset(interaction, 0, sizeof(interaction));
                     if ((nbytes = recv(i, interaction, sizeof interaction, 0)) <= 0) {
                         // got error or connection closed by client
@@ -419,22 +375,17 @@ void* support_ui_connection(void* thread_data)
                         int move = interactionIsValid(interaction);
                         if(move == 0) continue;
                         session->reported_transmitters.change_transmitter(move);
-                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow, mainMenu.row, mainMenu.line); //mainMenu.nazwy_odbiornikow)
-                        createMessage(buff, add, &mainMenu);
+                        session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
+                                                                               mainMenu.row, mainMenu.line);
+                        create_UI_menu_message(buff, add, &mainMenu);
                         session->SESSION_ESTABLISHED = false;
 
                         // we got some data from a client
                         for(j = 0; j <= fdmax; j++) {
                             // send to everyone!
                             if (FD_ISSET(j, &master)) {
-                                // except the listener and ourselves
                                 if (j != listener) {
-                                    //setTelnetOptions(newfd);
                                     sendNewMenuToClient(j, buff);
-
-                                    //if (send(j, buff, nbytes, 0) == -1) {
-                                    //    perror("send");
-                                    //}
                                 }
                             }
                         }

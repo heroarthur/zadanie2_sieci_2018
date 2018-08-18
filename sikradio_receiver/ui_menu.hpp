@@ -13,7 +13,4 @@ struct UI_THREAD_DATA {
 };
 void* support_ui_connection(void* thread_data);
 
-
-
-
 #endif //ZADANIE2_UI_MENU_HPP

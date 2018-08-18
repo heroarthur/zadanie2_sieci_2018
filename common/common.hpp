@@ -61,18 +61,14 @@ bool msgIsRexmit(string msg);
 bool msgIsBorewicz(string msg);
 
 
-const uint32_t first = 0, from_first = 0;
-const uint32_t second = 1, from_second = 1;
-const uint32_t third = 2, from_third = 2;
-const uint32_t fourth = 3, from_fourth = 3;
-
+const uint32_t second = 1;
+const uint32_t third = 2;
+const uint32_t from_fourth = 4;
 
 const uint32_t RECVFROM_BUFF_SIZE = 10000;
-const uint32_t WRITE_BUFF_SIZE = 10000;
-const uint32_t BOREWICZ_MSG = 10000;
 
 
-//new connection design
+
 struct Connection_addres {
     struct sockaddr ai_addr;
     socklen_t ai_addrlen;
@@ -142,7 +138,6 @@ public:
 
 public:
     availabile_transmitters () {
-        //mutex_protection = PTHREAD_MUTEX_INITIALIZER;
         if (pthread_mutex_init(&mutex_protection, nullptr) != 0)
         {
             printf("\n availabile_transmitters mutex_protection initialization failed\n");
@@ -152,7 +147,7 @@ public:
 
     void update_transmitter(transmitter_addr& new_transmitter) {
         pthread_mutex_lock(&mutex_protection);
-        transmitters_set::iterator tr = transmitters.find(new_transmitter); //transmitters_set::iterator
+        transmitters_set::iterator tr = transmitters.find(new_transmitter);
         if(tr != transmitters.end()) {
             (tr)-> last_reported_sec = current_time_sec();
         }
@@ -170,7 +165,8 @@ public:
         return empty;
     }
 
-    bool get_next_transmitter(transmitter_addr& ret_transmitter, transmitter_addr& current_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
+    bool get_next_transmitter(transmitter_addr& ret_transmitter,
+                              transmitter_addr& current_transmitter) { // TODO  szukanie nazwy transmitera, szukanie poprzedniego transmitera
         pthread_mutex_lock(&mutex_protection);
         if(!transmitters.empty()) {
             auto it = transmitters.find(current_transmitter);
@@ -218,7 +214,8 @@ public:
     }
 
 
-    void give_transmitters_names(list<string>& transmitter_names, int& row, int& line) {
+    void give_transmitters_names(list<string>& transmitter_names,
+                                 uint32_t& row, uint32_t& line) {
         transmitter_names.clear();
 
         pthread_mutex_lock(&mutex_protection);
@@ -227,8 +224,7 @@ public:
             return;
         }
         row = this->choosen_transmitter;
-        //auto it = transmitters.begin();
-        //std::advance(it, row);
+
         line = 3;
         row += 4; //---SIK RADIO ---
         for (auto tr = transmitters.begin(); tr != transmitters.end(); tr++) {
@@ -245,8 +241,8 @@ public:
     void change_transmitter(int move) {
         pthread_mutex_lock(&mutex_protection);
         int new_transmitter_index = choosen_transmitter + move;
-        this->choosen_transmitter = max(0, new_transmitter_index);
-        this->choosen_transmitter = min(max((int)transmitters.size()-1,0), (int)choosen_transmitter);
+        this->choosen_transmitter = (uint32_t)max(0, new_transmitter_index);
+        this->choosen_transmitter = (uint32_t)min(max((int)transmitters.size()-1,0), (int)choosen_transmitter);
         pthread_mutex_unlock(&mutex_protection);
     }
 
@@ -295,7 +291,7 @@ string join_container_elements(T v, string delimiter) {
 
 
 
-uint32_t parse_optarg_to_number(int option, const char *optarg);//zmien nazwe
+uint32_t parse_optarg_to_number(int option, const char *optarg);
 
 
 
@@ -314,7 +310,10 @@ public:
         highest = prev(dict.end(), 1)->first;
         return true;
     };
-    void ret_underlying_map(map<key,q_type>& ret_map) {ret_map.swap(dict); dict.clear(); while(keys_fifo.size()>0) keys_fifo.pop();}
+    void ret_underlying_map(map<key,q_type>& ret_map) {
+        ret_map.swap(dict); dict.clear();
+        while(keys_fifo.size()>0) keys_fifo.pop();}
+
     void set_max_size(uint32_t new_max_size) {max_size = new_max_size;}
     bool contain(key k) {return dict.find(k) != dict.end();}
     bool empty() {return dict.empty();}
@@ -397,12 +396,12 @@ public:
             exit(1);
         }
     }
-    void insert(list<q_type>& insert_l) { //std::list<q_type> insert(list<q_type>& l)
+    void insert(list<q_type>& insert_l) {
         pthread_mutex_lock(&mutex);
         l.splice(l.end(), insert_l);
         pthread_mutex_unlock(&mutex);
     }
-    void ret_uniqe_list(list<q_type>& ret_l) {//    void ret_uniqe_list(list<q_type>& l) {
+    void ret_uniqe_list(list<q_type>& ret_l) {
         ret_l.clear();
         pthread_mutex_lock(&mutex);
         l.unique();
@@ -443,9 +442,11 @@ public:
             arr[beg + i] = bytes[i];
         }
     }
-    void pop_to_container(size_t pop_len, uint64_t fb_num, byte_container& new_container) {
+    void pop_to_container(size_t pop_len, uint64_t fb_num,
+                          byte_container& new_container) {
         assert(bytes.size() >= pop_len);
-        new_container = byte_container(bytes.begin(), bytes.begin()+pop_len, fb_num);
+        new_container = byte_container(bytes.begin(),
+                bytes.begin()+pop_len, fb_num);
         bytes.erase(bytes.begin(), bytes.begin()+pop_len);
         first_byte_num += pop_len;
     }
@@ -468,24 +469,16 @@ public:
 
 
 
-struct packgs {
-    uint64_t first_byte_num;
-    byte_container bytes;
-};
+
 
 typedef string pack_id;
 class Input_management {
 private:
-    FILE * stdin_debug_fd;
-
     uint64_t first_byte_num;
     uint64_t next_unused_package_num;
     uint64_t next_availabile_package_num;
 
     uint32_t fsize;
-    uint32_t INPUT_READ_SIZE = FSIZE_DEF;
-    string buff;
-    string s;
     limited_dict<pack_id, byte_container> dict;
 
     void read_input(byte_container& msg);
@@ -494,11 +487,13 @@ public:
     uint32_t psize;
     uint64_t session_id;
     uint32_t audio_pack_size;
-    Input_management(uint32_t psize_, uint32_t fsize_): first_byte_num(0), next_unused_package_num(0),
-            next_availabile_package_num(0), fsize(fsize_),  dict(fsize_/psize_), psize(psize_)
-             {
-        //stdin_debug_fd=fopen("bytes_input", "r");
-        //psize = (uint32_t)strlen("spitfire_package");
+    Input_management(uint32_t psize_, uint32_t fsize_):
+            first_byte_num(0),
+            next_unused_package_num(0),
+            next_availabile_package_num(0),
+            fsize(fsize_),
+            dict(fsize_/psize_),
+            psize(psize_) {
         audio_pack_size = sizeof(session_id) + sizeof(first_byte_num) + psize;
         session_id = current_time_sec();
     }
@@ -530,6 +525,8 @@ private:
     uint64_t tmp;
 
 public:
+    explicit ROUND_TIMER (uint64_t interval_in_milisec_): interval_in_usecond(interval_in_milisec_*1000) {};
+
     bool new_round_start() {
         if(gettimeofday(&tval, nullptr) == 0) {
             tmp = (uint64_t)tval.tv_usec + (uint64_t)tval.tv_sec*MICROSECOND;
@@ -540,7 +537,6 @@ public:
         }
         return false;
     }
-    explicit ROUND_TIMER (uint64_t interval_in_milisec_) {interval_in_usecond = interval_in_milisec_*1000;}
 };
 
 
