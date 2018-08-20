@@ -59,14 +59,13 @@ void clear_not_reported_transmitters(transmitters_set& transmitters) {
 
 
 
-void restart_audio_player(current_transmitter_session& session,
-                                        uint16_t ctrl_port_u16) {
+void restart_audio_player(current_transmitter_session& session, uint16_t ctrl_port_u16) {
     session.reported_transmitters.clear_not_reported_transmitters();
     pthread_mutex_lock(&session.mutex);
     if(session.reported_transmitters.empty()) return;
     transmitter_addr new_tr;
     if(!session.reported_transmitters.get_choosen_tansmitter(new_tr)) return;
-    init_transmitter_session(session, new_tr, ctrl_port_u16);
+    init_transmitter_session(session, new_tr);
     create_socket_binded_to_new_mcast_addr(session.mcast_sockfd,
                                            session.mcast_addr.c_str(),
                                            session.data_port.c_str());
@@ -86,7 +85,7 @@ void send_rexmit(int rexmit_sockfd,
     const uint32_t max_rexmit_lenght = 1200;
     char rexmit_msg[RECVFROM_BUFF_SIZE];
 
-    missing_packs.ret_uniqe_list(missings);
+    missing_packs.get_uniqe_list(missings);
     missing_packs.clear();
     if(missings.empty()) return;
     string missing_packgage_msg = join_container_elements<list<string> >(missings, ",");
@@ -102,7 +101,7 @@ void send_rexmit(int rexmit_sockfd,
 
 
 void init_transmitter_session(current_transmitter_session& session,
-                              const transmitter_addr& tr, uint16_t ctrl_port) {
+                              const transmitter_addr& tr) {
     session.SESSION_ESTABLISHED = true;
     session.FIRST_PACKS_RECEIVED = false;
     session.byte0 = 0;

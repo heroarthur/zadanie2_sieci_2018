@@ -178,6 +178,7 @@ void* support_ui_connection(void* thread_data)
 {
     struct UI_THREAD_DATA* config = (UI_THREAD_DATA*)thread_data;
     current_transmitter_session* session = config->session;
+    string ui_port = config->ui_port;
 
     session->reported_transmitters.give_transmitters_names(mainMenu.nazwy_odbiornikow,
                                                            mainMenu.row, mainMenu.line);
@@ -207,7 +208,7 @@ void* support_ui_connection(void* thread_data)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-    if ((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0) {
+    if ((rv = getaddrinfo(NULL, ui_port.c_str(), &hints, &ai)) != 0) {
         fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
         exit(1);
     }
@@ -264,6 +265,7 @@ void* support_ui_connection(void* thread_data)
 
 
         if(session->reported_transmitters.TRANSMITTER_NUMBER_CHANGED) {
+            session->SESSION_ESTABLISHED = false;
             // we got some data from a client
             for(j = 0; j <= fdmax; j++) {
                 // send to everyone!

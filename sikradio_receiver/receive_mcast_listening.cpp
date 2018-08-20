@@ -46,8 +46,8 @@ void* receive_transmitters_identyfication(void *threat_data) {
     string broadcast_message = config->broadcast_message;
 
     static struct timeval tv{0,0};
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
+    tv.tv_sec = 1;
+    tv.tv_usec = 500000;
 
     fd_set master;
     fd_set readfds;
@@ -64,7 +64,7 @@ void* receive_transmitters_identyfication(void *threat_data) {
     bool continue_recv_identyfication = true;
     while(continue_recv_identyfication) {
         readfds = master; // copy it
-        if (select(recv_sockfd+1, &readfds, NULL, NULL, &tv) == -1) {
+        if (select(recv_sockfd+1, &readfds, nullptr, nullptr, &tv) == -1) {
             perror("select");
             exit(1);
         }
@@ -113,6 +113,8 @@ void* write_packages_to_stdin(void *threat_data) {
     std::unique_lock<std::mutex> lck(mtx);
 
     packgs_set_to_stdin stdin_packgs{};
+
+
 
     bool loop = true;
     while(loop) {

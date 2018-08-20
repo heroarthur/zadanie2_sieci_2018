@@ -82,8 +82,7 @@ void update_session_first_pack(uint64_t recv_session_id,
                                current_transmitter_session& session);
 
 void init_transmitter_session(current_transmitter_session& session,
-                              const transmitter_addr& tr,
-                              uint16_t ctrl_port);
+                              const transmitter_addr& tr);
 
 void restart_audio_player(current_transmitter_session& session,
                           uint16_t ctrl_port_u16);

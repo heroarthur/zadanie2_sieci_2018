@@ -58,7 +58,6 @@ bool recv_before_timeout(current_transmitter_session &session) {
     return false;
 }
 
-bool transmitter_availabile(availabile_transmitters& tr) {return !tr.empty();}
 
 
 
@@ -123,7 +122,6 @@ int main (int argc, char *argv[]) {
 
 
 
-    transmitters_set finded_transmitters;
     uint16_t ctrl_port_num = (uint16_t)parse_optarg_to_number(0, ctrl_port.c_str());
 
 
@@ -153,6 +151,8 @@ int main (int argc, char *argv[]) {
 
 
     current_transmitter_session session;
+    session.reported_transmitters.set_prefered_transmitter(nazwa_preferowanego_nadajnika);
+
     limited_dict<uint64_t, byte_container> d(bsize);
     session.packs_dict = &d;
     session.mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -210,6 +210,7 @@ int main (int argc, char *argv[]) {
     pthread_t thread_ui;
     struct UI_THREAD_DATA thread_ui_conf;
     thread_ui_conf.session = &session;
+    thread_ui_conf.ui_port = ui_port;
 
     if (pthread_create(&thread_ui, nullptr, support_ui_connection,
                        (void *)&thread_ui_conf)) {
@@ -235,16 +236,10 @@ int main (int argc, char *argv[]) {
         if (session.reported_transmitters.empty()) {
             cv.wait(lck);
         }
-
         if (!session.SESSION_ESTABLISHED) {
             restart_audio_player(session, ctrl_port_num);
             continue;
         }
-
-
-        clear_not_reported_transmitters(finded_transmitters);
-
-
 
         if (!session.SESSION_ESTABLISHED) continue;
         if (!recv_before_timeout<0, 500000>(session))
@@ -282,6 +277,7 @@ int main (int argc, char *argv[]) {
                                             stdin_list_mutex, cv_stdin);
             rexmit_packgs_numbers.clear();
         }
+
         add_missig_packgs_to_list(session.psize, session.last_pack_num ,
                                   session.cur_pack_num, rexmit_packgs_numbers);
         if (rexmit_timer.new_round_start())

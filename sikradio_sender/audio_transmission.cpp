@@ -61,7 +61,7 @@ void emit_single_package(int sockfd, Connection_addres& con, pack_id id, Input_m
 
 void packs_retransmission(int sockd, Connection_addres& con, concurrent_uniqe_list<string> &ret_list, Input_management &input_queue) {
     static std::list<string> ret_packs;
-    ret_list.ret_uniqe_list(ret_packs);
+    ret_list.get_uniqe_list(ret_packs);
 
     for (const pack_id &id : ret_packs) {
         emit_single_package(sockd, con, id, input_queue);

@@ -55,7 +55,7 @@ const string BOREWICZ_HERE = "BOREWICZ_HERE";
 
 const uint32_t second = 1;
 const uint32_t third = 2;
-const uint32_t from_fourth = 4;
+const uint32_t from_fourth = 3;
 
 const uint32_t RECVFROM_BUFF_SIZE = 10000;
 const uint64_t MICROSECOND = 1000000;
@@ -128,7 +128,7 @@ public:
     pthread_mutex_t	mutex_protection = PTHREAD_MUTEX_INITIALIZER;
     uint32_t choosen_transmitter = 0;
     std::atomic<bool> TRANSMITTER_NUMBER_CHANGED;
-
+    string prefered_transmitter_name = "";
 
 public:
     availabile_transmitters () {
@@ -140,7 +140,13 @@ public:
         }
     }
 
+    void set_prefered_transmitter(string prefered_transmitter_name_) {
+        prefered_transmitter_name = prefered_transmitter_name_;
+    }
+
     void update_transmitter(transmitter_addr& new_transmitter) {
+        static transmitter_addr cur_tr;
+
         pthread_mutex_lock(&mutex_protection);
         auto tr = transmitters.find(new_transmitter);
         if(tr != transmitters.end()) {
@@ -148,7 +154,25 @@ public:
         }
         else {
             TRANSMITTER_NUMBER_CHANGED = true;
+            if(!transmitters.empty()) find_transmitter_at_number(cur_tr, choosen_transmitter);
+
+
             transmitters.insert(new_transmitter);
+
+            uint32_t prefered_number_ = 0;
+            for(auto& t: transmitters) {
+                if(prefered_transmitter_name.compare(t.nazwa_stacji) == 0) {
+                    //if(choosen_transmitter != prefered_number_)
+                    choosen_transmitter = prefered_number_;
+                    pthread_mutex_unlock(&mutex_protection);
+                    return;
+                }
+                prefered_number_++;
+            }
+
+            uint32_t new_position = 0;
+            find_number_of_transmitter(new_position, cur_tr);
+            this->choosen_transmitter = new_position;
         }
         pthread_mutex_unlock(&mutex_protection);
     }
@@ -163,10 +187,13 @@ public:
 
     bool get_choosen_tansmitter(transmitter_addr& ret_transmitter) {
         pthread_mutex_lock(&mutex_protection);
+
         if(transmitters.empty()) {
             pthread_mutex_unlock(&mutex_protection);
             return false;
         }
+
+
         if(transmitters.size() < choosen_transmitter+1) {
             printf("give choosen transmitter error");
             exit(1);
@@ -179,15 +206,51 @@ public:
     }
 
 
+    bool find_transmitter_at_number(transmitter_addr& tr, uint32_t number) {
+        assert(transmitters.size() > number);
+        uint32_t tr_number = 0;
+        for(auto it = transmitters.begin(); it != transmitters.end(); it++) {
+            if(tr_number == number) {
+                tr = *it;
+                return true;
+            }
+            tr_number += 1;
+        }
+        return false;
+    }
+
+    bool find_number_of_transmitter(uint32_t& number, transmitter_addr& tr) {
+        uint32_t finded_number = 0;
+        for(auto it = transmitters.begin(); it != transmitters.end(); it++) {
+            if (memcmp(&tr.direct_rexmit_con, &(it->direct_rexmit_con), sizeof(Connection_addres)) == 0) { //memcmp(&tr, &(*it), sizeof(transmitter_addr)) == 0
+                number = finded_number;
+                return true;
+            }
+            finded_number += 1;
+        }
+        return false;
+    }
+
+
     void clear_not_reported_transmitters() {
         pthread_mutex_lock(&mutex_protection);
+        if(transmitters.empty()) {
+            pthread_mutex_unlock(&mutex_protection);
+            return;
+        }
+        transmitter_addr cur_tr;
+        find_transmitter_at_number(cur_tr, choosen_transmitter);
+
         for (const transmitter_addr& tr : transmitters) {
             if(last_report_older_than<20>(tr.last_reported_sec)) {
                 transmitters.erase(tr);
-                choosen_transmitter = 0;
                 TRANSMITTER_NUMBER_CHANGED = true;
             }
         }
+
+        uint32_t new_position = 0;
+        find_number_of_transmitter(new_position, cur_tr);
+        this->choosen_transmitter = new_position;
         pthread_mutex_unlock(&mutex_protection);
     }
 
@@ -209,7 +272,7 @@ public:
         }
         std::list<string>::iterator it = transmitter_names.begin();
         std::advance(it, this->choosen_transmitter);
-        if(transmitter_names.empty()) {printf("transmitter_names empty!!!");}
+        if(transmitter_names.empty()) {printf("Eror: transmitter_names empty!!!"); exit(2);}
         (*it)[2] = '>';
         pthread_mutex_unlock(&mutex_protection);
     }
@@ -248,6 +311,8 @@ string join_container_elements(T v, string delimiter) {
     string s = "";
     for(auto it = v.begin() + join_start; it != v.end(); it++)
         s += *it + delimiter;
+    if(!s.empty())
+        s.pop_back();
     return s;
 }
 
@@ -321,7 +386,7 @@ public:
         l.splice(l.end(), insert_l);
         pthread_mutex_unlock(&mutex);
     }
-    void ret_uniqe_list(list<q_type>& ret_l) {
+    void get_uniqe_list(list<q_type> &ret_l) {
         ret_l.clear();
         pthread_mutex_lock(&mutex);
         l.unique();

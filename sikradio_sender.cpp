@@ -34,6 +34,8 @@ using namespace std;
 
 
 
+
+
 int main (int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
@@ -62,7 +64,7 @@ int main (int argc, char *argv[]) {
 
 
 
-    Input_management input_queue(psize, fsize*20);
+    Input_management input_queue(psize, fsize);
 
     pthread_t listener;
     listening_thread_configuration thread_conf;

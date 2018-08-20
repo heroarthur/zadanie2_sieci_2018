@@ -10,6 +10,7 @@
 
 struct UI_THREAD_DATA {
     current_transmitter_session* session;
+    string ui_port;
 };
 void* support_ui_connection(void* thread_data);
 
